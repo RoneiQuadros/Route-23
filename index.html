@@ -3,31 +3,213 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Teste Autocomplete</title>
+  <title>Route 23</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #ffffff;
       padding: 20px;
-      background-color: #fff;
+      text-align: center;
     }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      color: #1b3d2f;
+      margin-bottom: 20px;
+    }
+
     input {
+      padding: 10px;
+      margin: 5px;
       width: 90%;
       max-width: 400px;
+    }
+
+    button {
       padding: 10px;
-      font-size: 16px;
+      margin: 5px;
+      width: 30%;
+      min-width: 100px;
+      background-color: #1b5e20;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    li {
+      background-color: #f1f1f1;
+      margin: 10px auto;
+      padding: 10px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
+  <script>
+  let autocomplete;
+
+  function initAutocomplete() {
+    const input = document.getElementById("endereco");
+    if (!input) return;
+
+    autocomplete = new google.maps.places.Autocomplete(input, {
+      types: ["geocode"], // você pode mudar para ["address"] ou deixar vazio para mais resultados
+      componentRestrictions: { country: "br" }, // opcional: restringe para Brasil
+    });
+
+    // Se quiser capturar o endereço selecionado
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      console.log("Endereço selecionado:", place.formatted_address);
+      // Aqui você pode usar o endereço selecionado no app
+    });
+  }
+</script>
+
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places"></script>
 </head>
 <body>
-  <h1>Teste de Autocomplete</h1>
-  <input id="endereco" type="text" placeholder="Digite um endereço..." />
+  <img src="https://i.imgur.com/NKvNknO.png" alt="Logo Route 23" class="logo" />
+  <h1>Route 23</h1>
+
+  <input id="pedido" type="text" placeholder="Número do Pedido" />
+  <input id="endereco" type="text" placeholder="Endereço" />
+  <br>
+  <button onclick="adicionar()">Adicionar</button>
+  <button onclick="otimizarRota()">Otimizar Rota</button>
+
+  <ul id="lista"></ul>
 
   <script>
+    let paradas = [];
+    let atual = 0;
+
+    function adicionar() {
+      const pedido = document.getElementById('pedido').value.trim();
+      const endereco = document.getElementById('endereco').value.trim();
+      if (!endereco || !pedido) return;
+
+      paradas.unshift({ pedido, endereco }); // último pedido primeiro
+      atualizarLista();
+
+      document.getElementById('pedido').value = '';
+      document.getElementById('endereco').value = '';
+    }
+
+    function atualizarLista() {
+      const lista = document.getElementById('lista');
+      lista.innerHTML = '';
+      paradas.forEach((p, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <strong>Pedido:</strong> ${p.pedido}<br/>
+          <strong>Endereço:</strong> ${p.endereco}<br/>
+          <button onclick="navegar('${p.endereco}')">Navegar</button>
+          <button onclick="entregue(${i})">Entregue</button>
+          <button onclick="naoEntregue(${i})">Não Entregue</button>
+        `;
+        lista.appendChild(li);
+      });
+    }
+
+    function navegar(endereco) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(endereco)}&travelmode=driving`;
+      window.open(url, '_blank');
+    }
+
+    function entregue(index) {
+      paradas.splice(index, 1);
+      atual = 0;
+      atualizarLista();
+      if (paradas[0]) navegar(paradas[0].endereco);
+    }
+
+    function naoEntregue(index) {
+      paradas.push(paradas.splice(index, 1)[0]); // move para o final
+      atualizarLista();
+      if (paradas[0]) navegar(paradas[0].endereco);
+    }
+
+    async function otimizarRota() {
+      if (paradas.length < 2) return alert('Adicione ao menos dois endereços.');
+
+      const coords = await Promise.all(paradas.map(p => obterCoordenadas(p.endereco)));
+      const ordemOtima = await obterOrdemOtima(coords);
+
+      paradas = ordemOtima.map(i => paradas[i]);
+      atualizarLista();
+    }
+
+    function obterCoordenadas(endereco) {
+      return new Promise((resolve) => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: endereco }, (results, status) => {
+          if (status === 'OK') {
+            const loc = results[0].geometry.location;
+            resolve({ lat: loc.lat(), lng: loc.lng() });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    async function obterOrdemOtima(coords) {
+      const matrix = [];
+      for (let i = 0; i < coords.length; i++) {
+        matrix[i] = [];
+        for (let j = 0; j < coords.length; j++) {
+          const dist = Math.hypot(
+            coords[i].lat - coords[j].lat,
+            coords[i].lng - coords[j].lng
+          );
+          matrix[i][j] = dist;
+        }
+      }
+
+      const visited = [0];
+      while (visited.length < coords.length) {
+        const last = visited[visited.length - 1];
+        let nearest = null;
+        let nearestDist = Infinity;
+        for (let i = 0; i < coords.length; i++) {
+          if (!visited.includes(i) && matrix[last][i] < nearestDist) {
+            nearest = i;
+            nearestDist = matrix[last][i];
+          }
+        }
+        visited.push(nearest);
+      }
+      return visited;
+    }
+
+    // Autocomplete
     window.onload = function () {
       const input = document.getElementById('endereco');
-      const autocomplete = new google.maps.places.Autocomplete(input);
+      new google.maps.places.Autocomplete(input);
     };
   </script>
+  <script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initAutocomplete"
+  async
+  defer
+></script>
+
 </body>
 </html>
