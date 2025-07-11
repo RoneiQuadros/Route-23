@@ -1,220 +1,325 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!DOCTYPE html><html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Route 23</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Route 23 – Fase 2</title>
 
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background: #ffffff;
-        padding: 20px;
-        text-align: center;
-      }
+<!-- ===================== ESTILOS ===================== -->
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #ffffff;
+    padding: 20px;
+    text-align: center;
+  }
 
-      .logo {
-        width: 80px;
-        height: 80px;
-        margin-bottom: 10px;
-      }
+  .logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 10px;
+  }
 
-      h1 {
-        color: #1b3d2f;
-        margin-bottom: 20px;
-      }
+  h1 {
+    color: #1b3d2f;
+    margin-bottom: 10px;
+  }
 
-      input {
-        padding: 10px;
-        margin: 5px;
-        width: 90%;
-        max-width: 400px;
-      }
+  /* Formulário */
+  input {
+    padding: 10px;
+    margin: 5px;
+    width: 90%;
+    max-width: 400px;
+  }
 
-      button {
-        padding: 10px;
-        margin: 5px;
-        width: 30%;
-        min-width: 100px;
-        background-color: #1b5e20;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-      }
+  /* Botões principais */
+  button {
+    padding: 10px;
+    margin: 5px;
+    width: 30%;
+    min-width: 120px;
+    background-color: #1b5e20;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
 
-      ul {
-        list-style: none;
-        padding: 0;
-        margin-top: 20px;
-      }
+  /* Lista de paradas */
+  ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+  }
 
-      li {
-        background-color: #f1f1f1;
-        margin: 10px auto;
-        padding: 10px;
-        border-radius: 8px;
-        width: 90%;
-        max-width: 500px;
-      }
+  li {
+    background-color: #f1f1f1;
+    margin: 10px auto;
+    padding: 10px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    cursor: grab; /* indica elemento arrastável */
+  }
 
-      .hidden {
-        display: none;
-      }
-    </style>
+  /* Mapa */
+  #map {
+    height: 400px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 20px;
+    border-radius: 8px;
+  }
 
-    <!-- 1️⃣  Script de inicialização do Autocomplete -->
-    <script>
-      let autocomplete;
+  /* Botões Entregue/Não entregue, começam escondidos */
+  .btn-entrega {
+    display: none;
+  }
+</style>
 
-      function initAutocomplete() {
-        const input = document.getElementById("endereco");
-        if (!input) return;
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+  /* ------------------------------------------------------------------
+   *  Variáveis globais
+   * ----------------------------------------------------------------*/
+  let map,
+    directionsService,
+    directionsRenderer,
+    autocomplete,
+    sortable; // SortableJS
 
-        // Instância do Autocomplete
-        autocomplete = new google.maps.places.Autocomplete(input, {
-          types: ["geocode"], // ou ["address"] se preferir apenas endereços completos
-          componentRestrictions: { country: "br" },
-          fields: ["formatted_address", "geometry", "name"], // otimiza a quota
-        });
+  let paradas = []; // {id, pedido, endereco}
+  let coordsParadas = []; // {lat, lng}
+  let routeStarted = false;
 
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          console.log("Endereço selecionado:", place.formatted_address);
-        });
-      }
-    </script>
-  </head>
-  <body>
-    <img
-      src="https://i.imgur.com/NKvNknO.png"
-      alt="Logo Route 23"
-      class="logo"
-    />
-    <h1>Route 23</h1>
+  /* ------------------------------------------------------------------
+   *  Mapa + Autocomplete (callback da API)
+   * ----------------------------------------------------------------*/
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: -14.235, lng: -51.9253 },
+      zoom: 4,
+    });
 
-    <input id="pedido" type="text" placeholder="Número do Pedido" />
-    <input id="endereco" type="text" placeholder="Endereço" />
-    <br />
-    <button onclick="adicionar()">Adicionar</button>
-    <button onclick="otimizarRota()">Otimizar Rota</button>
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+    directionsRenderer.setMap(map);
 
-    <ul id="lista"></ul>
+    initAutocomplete();
+  }
 
-    <script>
-      let paradas = [];
-      let atual = 0;
+  function initAutocomplete() {
+    const input = document.getElementById("endereco");
+    autocomplete = new google.maps.places.Autocomplete(input, {
+      types: ["geocode"],
+      componentRestrictions: { country: "br" },
+      fields: ["formatted_address", "geometry"],
+    });
+  }
 
-      function adicionar() {
-        const pedido = document.getElementById("pedido").value.trim();
-        const endereco = document.getElementById("endereco").value.trim();
-        if (!endereco || !pedido) return;
+  /* ------------------------------------------------------------------
+   *  Adicionar parada
+   * ----------------------------------------------------------------*/
+  function adicionar() {
+    const pedido = document.getElementById("pedido").value.trim();
+    const endereco = document.getElementById("endereco").value.trim();
+    if (!pedido || !endereco) return;
 
-        paradas.unshift({ pedido, endereco }); // último pedido primeiro
-        atualizarLista();
+    paradas.unshift({ id: Date.now(), pedido, endereco });
+    atualizarLista();
 
-        document.getElementById("pedido").value = "";
-        document.getElementById("endereco").value = "";
-      }
+    document.getElementById("pedido").value = "";
+    document.getElementById("endereco").value = "";
+  }
 
-      function atualizarLista() {
-        const lista = document.getElementById("lista");
-        lista.innerHTML = "";
-        paradas.forEach((p, i) => {
-          const li = document.createElement("li");
-          li.innerHTML = `
-            <strong>Pedido:</strong> ${p.pedido}<br />
-            <strong>Endereço:</strong> ${p.endereco}<br />
-            <button onclick="navegar('${p.endereco}')">Navegar</button>
-            <button onclick="entregue(${i})">Entregue</button>
-            <button onclick="naoEntregue(${i})">Não Entregue</button>
-          `;
-          lista.appendChild(li);
-        });
-      }
+  /* ------------------------------------------------------------------
+   *  Atualizar lista e integrar SortableJS
+   * ----------------------------------------------------------------*/
+  function atualizarLista() {
+    const lista = document.getElementById("lista");
+    lista.innerHTML = "";
 
-      function navegar(endereco) {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-          endereco
-        )}&travelmode=driving`;
-        window.open(url, "_blank");
-      }
+    paradas.forEach((p, idx) => {
+      const li = document.createElement("li");
+      li.dataset.index = idx; // posição atual
+      li.innerHTML = `
+        <strong>Pedido:</strong> ${p.pedido}<br />
+        <strong>Endereço:</strong> ${p.endereco}<br />
+        <button class="btn-entrega" onclick="entregue(${idx})">Entregue</button>
+        <button class="btn-entrega" onclick="naoEntregue(${idx})">Não Entregue</button>
+      `;
+      lista.appendChild(li);
+    });
 
-      function entregue(index) {
-        paradas.splice(index, 1);
-        atual = 0;
-        atualizarLista();
-        if (paradas[0]) navegar(paradas[0].endereco);
-      }
+    // Ativa/desativa botões de entrega conforme estado
+    document.querySelectorAll(".btn-entrega").forEach((b) => {
+      b.style.display = routeStarted ? "inline-block" : "none";
+    });
 
-      function naoEntregue(index) {
-        paradas.push(paradas.splice(index, 1)[0]); // move para o final
-        atualizarLista();
-        if (paradas[0]) navegar(paradas[0].endereco);
-      }
+    // Inicializa SortableJS uma única vez
+    if (!sortable) {
+      sortable = new Sortable(lista, {
+        animation: 150,
+        onEnd: reorderByDOM,
+      });
+    }
+  }
 
-      async function otimizarRota() {
-        if (paradas.length < 2)
-          return alert("Adicione ao menos dois endereços.");
+  /* ------------------------------------------------------------------
+   *  Reordenar array paradas conforme DOM após drag
+   * ----------------------------------------------------------------*/
+  function reorderByDOM() {
+    const lista = document.getElementById("lista");
+    const novaOrdem = [];
+    lista.childNodes.forEach((li) => {
+      const idx = parseInt(li.dataset.index);
+      novaOrdem.push(paradas[idx]);
+    });
+    paradas = novaOrdem;
+    // Reindexa data-index
+    paradas.forEach((p, i) => (lista.children[i].dataset.index = i));
 
-        const coords = await Promise.all(
-          paradas.map((p) => obterCoordenadas(p.endereco))
-        );
-        const ordemOtima = await obterOrdemOtima(coords);
+    // Se já tínhamos coordenadas (pós otimização), reordenamos tbm
+    if (coordsParadas.length === paradas.length) {
+      coordsParadas = novaOrdem.map((_, i) => coordsParadas[i]);
+    }
 
-        paradas = ordemOtima.map((i) => paradas[i]);
-        atualizarLista();
-      }
+    desenharParadasNoMapa();
+    desenharRotaCompleta();
+  }
 
-      function obterCoordenadas(endereco) {
-        return new Promise((resolve) => {
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode({ address: endereco }, (results, status) => {
-            if (status === "OK") {
-              const loc = results[0].geometry.location;
-              resolve({ lat: loc.lat(), lng: loc.lng() });
-            } else {
-              resolve(null);
-            }
-          });
-        });
-      }
+  /* ------------------------------------------------------------------
+   *  Entregue / Não entregue
+   * ----------------------------------------------------------------*/
+  function entregue(index) {
+    paradas.splice(index, 1);
+    coordsParadas.splice(index, 1);
+    atualizarLista();
+    desenharParadasNoMapa();
+    desenharRotaCompleta();
+    if (paradas[0]) navegar(paradas[0].endereco);
+  }
 
-      async function obterOrdemOtima(coords) {
-        const matrix = [];
-        for (let i = 0; i < coords.length; i++) {
-          matrix[i] = [];
-          for (let j = 0; j < coords.length; j++) {
-            const dist = Math.hypot(
-              coords[i].lat - coords[j].lat,
-              coords[i].lng - coords[j].lng
-            );
-            matrix[i][j] = dist;
-          }
+  function naoEntregue(index) {
+    paradas.push(paradas.splice(index, 1)[0]); // move p/ final
+    coordsParadas.push(coordsParadas.splice(index, 1)[0]);
+    atualizarLista();
+    desenharParadasNoMapa();
+    desenharRotaCompleta();
+    if (paradas[0]) navegar(paradas[0].endereco);
+  }
+
+  /* ------------------------------------------------------------------
+   *  Iniciar rota: libera botões e navega p/ 1ª parada
+   * ----------------------------------------------------------------*/
+  function iniciarRota() {
+    if (paradas.length === 0) {
+      alert("Adicione pelo menos uma parada antes de iniciar a rota.");
+      return;
+    }
+    routeStarted = true;
+    document.querySelectorAll(".btn-entrega").forEach((b) => (b.style.display = "inline-block"));
+    navegar(paradas[0].endereco);
+  }
+
+  /* ------------------------------------------------------------------
+   *  Navegação externa (abre Google Maps)
+   * ----------------------------------------------------------------*/
+  function navegar(endereco) {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+      endereco
+    )}&travelmode=driving`;
+    window.open(url, "_blank");
+  }
+
+  /* ------------------------------------------------------------------
+   *  Otimizar rota (heurística vizinho mais próximo)
+   * ----------------------------------------------------------------*/
+  async function otimizarRota() {
+    if (paradas.length < 2) {
+      alert("Adicione ao menos dois endereços.");
+      return;
+    }
+
+    const coords = await Promise.all(paradas.map((p) => obterCoordenadas(p.endereco)));
+    if (coords.includes(null)) {
+      alert("Falha ao geocodificar algum endereço. Verifique-os e tente de novo.");
+      return;
+    }
+
+    const ordem = calcularOrdemVizinhoMaisProximo(coords);
+    paradas = ordem.map((i) => paradas[i]);
+    coordsParadas = ordem.map((i) => coords[i]);
+
+    atualizarLista();
+    desenharParadasNoMapa();
+    desenharRotaCompleta();
+  }
+
+  function obterCoordenadas(endereco) {
+    return new Promise((resolve) => {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: endereco }, (results, status) => {
+        if (status === "OK") {
+          const loc = results[0].geometry.location;
+          resolve({ lat: loc.lat(), lng: loc.lng() });
+        } else {
+          console.error(`Geocoder falhou para ${endereco}:`, status);
+          resolve(null);
         }
+      });
+    });
+  }
 
-        const visited = [0];
-        while (visited.length < coords.length) {
-          const last = visited[visited.length - 1];
-          let nearest = null;
-          let nearestDist = Infinity;
-          for (let i = 0; i < coords.length; i++) {
-            if (!visited.includes(i) && matrix[last][i] < nearestDist) {
-              nearest = i;
-              nearestDist = matrix[last][i];
-            }
-          }
-          visited.push(nearest);
+  function calcularOrdemVizinhoMaisProximo(coords) {
+    const n = coords.length;
+    const visitados = [0];
+    while (visitados.length < n) {
+      const last = visitados[visitados.length - 1];
+      let prox = -1;
+      let best = Infinity;
+      for (let i = 0; i < n; i++) {
+        if (visitados.includes(i)) continue;
+        const d = Math.hypot(coords[last].lat - coords[i].lat, coords[last].lng - coords[i].lng);
+        if (d < best) {
+          best = d;
+          prox = i;
         }
-        return visited;
       }
-    </script>
+      visitados.push(prox);
+    }
+    return visitados;
+  }
 
-    <!-- 2️⃣  Carregue a API com sua chave + callback -->
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initAutocomplete"
-      async
-      defer
-    ></script>
-  </body>
-</html>
+  /* ------------------------------------------------------------------
+   *  Desenhar paradas no mapa
+   * ----------------------------------------------------------------*/
+  let markers = [];
+  function desenharParadasNoMapa() {
+    markers.forEach((m) => m.setMap(null));
+    markers = [];
+    if (!coordsParadas.length) return;
+    const bounds = new google.maps.LatLngBounds();
+    coordsParadas.forEach((coord, i) => {
+      const marker = new google.maps.Marker({ position: coord, map: map, label: String(i + 1) });
+      markers.push(marker);
+      bounds.extend(coord);
+    });
+    map.fitBounds(bounds);
+  }
+
+  /* ------------------------------------------------------------------
+   *  Desenhar rota completa
+   * ----------------------------------------------------------------*/
+  function desenharRotaCompleta() {
+    if (paradas.length < 2) return;
+    const origin = paradas[0].endereco;
+    const destination = paradas[paradas.length - 1].endereco;
+    const waypoints = paradas.slice(1, -1).map((p) => ({ location: p.endereco, stopover: true }));
+    directionsService.route(
+      {
+        origin,
+        destination,
+        waypoints,
+        travelMode: google.maps.TravelMode.D
+
+        
