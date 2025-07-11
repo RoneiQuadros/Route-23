@@ -1,325 +1,84 @@
 <!DOCTYPE html><html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Route 23 – Fase 2</title>
-
-<!-- ===================== ESTILOS ===================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route 23 – Fase 2</title><!-- ===================== ESTILOS ===================== -->
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #ffffff;
-    padding: 20px;
-    text-align: center;
-  }
-
-  .logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 10px;
-  }
-
-  h1 {
-    color: #1b3d2f;
-    margin-bottom: 10px;
-  }
-
-  /* Formulário */
-  input {
-    padding: 10px;
-    margin: 5px;
-    width: 90%;
-    max-width: 400px;
-  }
-
-  /* Botões principais */
-  button {
-    padding: 10px;
-    margin: 5px;
-    width: 30%;
-    min-width: 120px;
-    background-color: #1b5e20;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  /* Lista de paradas */
-  ul {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-  }
-
-  li {
-    background-color: #f1f1f1;
-    margin: 10px auto;
-    padding: 10px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    cursor: grab; /* indica elemento arrastável */
-  }
-
-  /* Mapa */
-  #map {
-    height: 400px;
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto 20px;
-    border-radius: 8px;
-  }
-
-  /* Botões Entregue/Não entregue, começam escondidos */
-  .btn-entrega {
-    display: none;
-  }
+  body { font-family: Arial, sans-serif; background: #ffffff; padding: 20px; text-align: center; }
+  .logo { width: 80px; height: 80px; margin-bottom: 10px; }
+  h1 { color: #1b3d2f; margin-bottom: 10px; }
+  input { padding: 10px; margin: 5px; width: 90%; max-width: 400px; }
+  button { padding: 10px; margin: 5px; width: 30%; min-width: 120px; background-color: #1b5e20; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+  ul { list-style: none; padding: 0; margin-top: 20px; }
+  li { background-color: #f1f1f1; margin: 10px auto; padding: 10px; border-radius: 8px; width: 90%; max-width: 500px; cursor: grab; }
+  #map { height: 400px; width: 100%; max-width: 600px; margin: 0 auto 20px; border-radius: 8px; }
+  .btn-entrega { display: none; }
 </style>
 
-<!-- ===================== SCRIPTS ===================== -->
+  </head>
+  <body>
+    <img src="https://i.imgur.com/NKvNknO.png" alt="Logo Route 23" class="logo" />
+    <h1>Route 23</h1><div id="map"></div>
+
+<input id="pedido" type="text" placeholder="Número do Pedido" />
+<input id="endereco" type="text" placeholder="Endereço" />
+<br />
+<button onclick="adicionar()">Adicionar</button>
+<button onclick="otimizarRota()">Otimizar Rota</button>
+<button onclick="iniciarRota()">Iniciar Rota</button>
+
+<ul id="lista"></ul>
+
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<!-- Google Maps JS API (Maps + Places + Directions) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
+
 <script>
-  /* ------------------------------------------------------------------
-   *  Variáveis globais
-   * ----------------------------------------------------------------*/
-  let map,
-    directionsService,
-    directionsRenderer,
-    autocomplete,
-    sortable; // SortableJS
+  let map, directionsService, directionsRenderer, autocomplete, sortable;
+  let paradas = []; let coordsParadas = []; let routeStarted = false; let markers = [];
 
-  let paradas = []; // {id, pedido, endereco}
-  let coordsParadas = []; // {lat, lng}
-  let routeStarted = false;
-
-  /* ------------------------------------------------------------------
-   *  Mapa + Autocomplete (callback da API)
-   * ----------------------------------------------------------------*/
   function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: -14.235, lng: -51.9253 },
-      zoom: 4,
-    });
-
+    map = new google.maps.Map(document.getElementById('map'), { center: { lat: -14.235, lng: -51.9253 }, zoom: 4 });
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
     directionsRenderer.setMap(map);
-
     initAutocomplete();
   }
-
   function initAutocomplete() {
-    const input = document.getElementById("endereco");
-    autocomplete = new google.maps.places.Autocomplete(input, {
-      types: ["geocode"],
-      componentRestrictions: { country: "br" },
-      fields: ["formatted_address", "geometry"],
-    });
+    autocomplete = new google.maps.places.Autocomplete(document.getElementById('endereco'), { types: ['geocode'], componentRestrictions: { country: 'br' }, fields: ['formatted_address', 'geometry'] });
   }
 
-  /* ------------------------------------------------------------------
-   *  Adicionar parada
-   * ----------------------------------------------------------------*/
   function adicionar() {
-    const pedido = document.getElementById("pedido").value.trim();
-    const endereco = document.getElementById("endereco").value.trim();
+    const pedido = document.getElementById('pedido').value.trim();
+    const endereco = document.getElementById('endereco').value.trim();
     if (!pedido || !endereco) return;
-
     paradas.unshift({ id: Date.now(), pedido, endereco });
     atualizarLista();
-
-    document.getElementById("pedido").value = "";
-    document.getElementById("endereco").value = "";
+    document.getElementById('pedido').value = ''; document.getElementById('endereco').value = '';
   }
-
-  /* ------------------------------------------------------------------
-   *  Atualizar lista e integrar SortableJS
-   * ----------------------------------------------------------------*/
   function atualizarLista() {
-    const lista = document.getElementById("lista");
-    lista.innerHTML = "";
-
-    paradas.forEach((p, idx) => {
-      const li = document.createElement("li");
-      li.dataset.index = idx; // posição atual
-      li.innerHTML = `
-        <strong>Pedido:</strong> ${p.pedido}<br />
-        <strong>Endereço:</strong> ${p.endereco}<br />
-        <button class="btn-entrega" onclick="entregue(${idx})">Entregue</button>
-        <button class="btn-entrega" onclick="naoEntregue(${idx})">Não Entregue</button>
-      `;
-      lista.appendChild(li);
-    });
-
-    // Ativa/desativa botões de entrega conforme estado
-    document.querySelectorAll(".btn-entrega").forEach((b) => {
-      b.style.display = routeStarted ? "inline-block" : "none";
-    });
-
-    // Inicializa SortableJS uma única vez
-    if (!sortable) {
-      sortable = new Sortable(lista, {
-        animation: 150,
-        onEnd: reorderByDOM,
-      });
-    }
+    const lista = document.getElementById('lista'); lista.innerHTML = '';
+    paradas.forEach((p,i)=>{ const li=document.createElement('li'); li.dataset.index=i; li.innerHTML=`<strong>Pedido:</strong> ${p.pedido}<br/><strong>Endereço:</strong> ${p.endereco}<br/><button class='btn-entrega' onclick='entregue(${i})'>Entregue</button> <button class='btn-entrega' onclick='naoEntregue(${i})'>Não Entregue</button>`; lista.appendChild(li); });
+    document.querySelectorAll('.btn-entrega').forEach(b=>b.style.display=routeStarted?'inline-block':'none');
+    if(!sortable){ sortable=new Sortable(lista,{animation:150,onEnd:reorderByDOM}); }
   }
+  function reorderByDOM(){ const items=[...document.querySelectorAll('#lista li')]; paradas=items.map(li=>paradas[li.dataset.index]); items.forEach((li,i)=>li.dataset.index=i); if(coordsParadas.length===paradas.length){ coordsParadas=paradas.map((_,i)=>coordsParadas[i]); } desenharParadasNoMapa(); desenharRotaCompleta(); }
 
-  /* ------------------------------------------------------------------
-   *  Reordenar array paradas conforme DOM após drag
-   * ----------------------------------------------------------------*/
-  function reorderByDOM() {
-    const lista = document.getElementById("lista");
-    const novaOrdem = [];
-    lista.childNodes.forEach((li) => {
-      const idx = parseInt(li.dataset.index);
-      novaOrdem.push(paradas[idx]);
-    });
-    paradas = novaOrdem;
-    // Reindexa data-index
-    paradas.forEach((p, i) => (lista.children[i].dataset.index = i));
+  function entregue(i){ paradas.splice(i,1); coordsParadas.splice(i,1); atualizarLista(); desenharParadasNoMapa(); desenharRotaCompleta(); if(paradas[0]) navegar(paradas[0].endereco); }
+  function naoEntregue(i){ paradas.push(paradas.splice(i,1)[0]); coordsParadas.push(coordsParadas.splice(i,1)[0]); atualizarLista(); desenharParadasNoMapa(); desenharRotaCompleta(); if(paradas[0]) navegar(paradas[0].endereco); }
 
-    // Se já tínhamos coordenadas (pós otimização), reordenamos tbm
-    if (coordsParadas.length === paradas.length) {
-      coordsParadas = novaOrdem.map((_, i) => coordsParadas[i]);
-    }
+  function iniciarRota(){ if(paradas.length===0){alert('Adicione pelo menos uma parada.');return;} routeStarted=true; document.querySelectorAll('.btn-entrega').forEach(b=>b.style.display='inline-block'); navegar(paradas[0].endereco); }
+  function navegar(endereco){ window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(endereco)}&travelmode=driving`,'_blank'); }
 
-    desenharParadasNoMapa();
-    desenharRotaCompleta();
-  }
+  async function otimizarRota(){ if(paradas.length<2){alert('Adicione ao menos dois endereços.');return;} const coords=await Promise.all(paradas.map(p=>obterCoordenadas(p.endereco))); if(coords.includes(null)){alert('Falha ao geocodificar algum endereço.');return;} const ordem=calcularOrdem(coords); paradas=ordem.map(i=>paradas[i]); coordsParadas=ordem.map(i=>coords[i]); atualizarLista(); desenharParadasNoMapa(); desenharRotaCompleta(); }
+  function obterCoordenadas(endereco){ return new Promise(r=>{ new google.maps.Geocoder().geocode({address:endereco},(res,st)=>{ if(st==='OK'){ const l=res[0].geometry.location; r({lat:l.lat(),lng:l.lng()}); } else { console.error('Geocoder falhou:',st); r(null);} }); }); }
+  function calcularOrdem(coords){ const n=coords.length, v=[0]; while(v.length<n){ const last=v[v.length-1]; let prox=-1,best=Infinity; for(let i=0;i<n;i++){ if(v.includes(i)) continue; const d=Math.hypot(coords[last].lat-coords[i].lat,coords[last].lng-coords[i].lng); if(d<best){best=d;prox=i;} } v.push(prox);} return v; }
 
-  /* ------------------------------------------------------------------
-   *  Entregue / Não entregue
-   * ----------------------------------------------------------------*/
-  function entregue(index) {
-    paradas.splice(index, 1);
-    coordsParadas.splice(index, 1);
-    atualizarLista();
-    desenharParadasNoMapa();
-    desenharRotaCompleta();
-    if (paradas[0]) navegar(paradas[0].endereco);
-  }
+  function desenharParadasNoMapa(){ markers.forEach(m=>m.setMap(null)); markers=[]; if(!coordsParadas.length) return; const bounds=new google.maps.LatLngBounds(); coordsParadas.forEach((c,i)=>{ const mk=new google.maps.Marker({position:c,map,label:String(i+1)}); markers.push(mk); bounds.extend(c); }); map.fitBounds(bounds); }
+  function desenharRotaCompleta(){ if(paradas.length<2) return; directionsService.route({ origin:paradas[0].endereco, destination:paradas[paradas.length-1].endereco, waypoints:paradas.slice(1,-1).map(p=>({location:p.endereco,stopover:true})), travelMode:google.maps.TravelMode.DRIVING },(res,st)=>{ if(st==='OK'){ directionsRenderer.setDirections(res);} else {console.error('Directions falhou:',st);} }); }
+</script>
 
-  function naoEntregue(index) {
-    paradas.push(paradas.splice(index, 1)[0]); // move p/ final
-    coordsParadas.push(coordsParadas.splice(index, 1)[0]);
-    atualizarLista();
-    desenharParadasNoMapa();
-    desenharRotaCompleta();
-    if (paradas[0]) navegar(paradas[0].endereco);
-  }
-
-  /* ------------------------------------------------------------------
-   *  Iniciar rota: libera botões e navega p/ 1ª parada
-   * ----------------------------------------------------------------*/
-  function iniciarRota() {
-    if (paradas.length === 0) {
-      alert("Adicione pelo menos uma parada antes de iniciar a rota.");
-      return;
-    }
-    routeStarted = true;
-    document.querySelectorAll(".btn-entrega").forEach((b) => (b.style.display = "inline-block"));
-    navegar(paradas[0].endereco);
-  }
-
-  /* ------------------------------------------------------------------
-   *  Navegação externa (abre Google Maps)
-   * ----------------------------------------------------------------*/
-  function navegar(endereco) {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-      endereco
-    )}&travelmode=driving`;
-    window.open(url, "_blank");
-  }
-
-  /* ------------------------------------------------------------------
-   *  Otimizar rota (heurística vizinho mais próximo)
-   * ----------------------------------------------------------------*/
-  async function otimizarRota() {
-    if (paradas.length < 2) {
-      alert("Adicione ao menos dois endereços.");
-      return;
-    }
-
-    const coords = await Promise.all(paradas.map((p) => obterCoordenadas(p.endereco)));
-    if (coords.includes(null)) {
-      alert("Falha ao geocodificar algum endereço. Verifique-os e tente de novo.");
-      return;
-    }
-
-    const ordem = calcularOrdemVizinhoMaisProximo(coords);
-    paradas = ordem.map((i) => paradas[i]);
-    coordsParadas = ordem.map((i) => coords[i]);
-
-    atualizarLista();
-    desenharParadasNoMapa();
-    desenharRotaCompleta();
-  }
-
-  function obterCoordenadas(endereco) {
-    return new Promise((resolve) => {
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ address: endereco }, (results, status) => {
-        if (status === "OK") {
-          const loc = results[0].geometry.location;
-          resolve({ lat: loc.lat(), lng: loc.lng() });
-        } else {
-          console.error(`Geocoder falhou para ${endereco}:`, status);
-          resolve(null);
-        }
-      });
-    });
-  }
-
-  function calcularOrdemVizinhoMaisProximo(coords) {
-    const n = coords.length;
-    const visitados = [0];
-    while (visitados.length < n) {
-      const last = visitados[visitados.length - 1];
-      let prox = -1;
-      let best = Infinity;
-      for (let i = 0; i < n; i++) {
-        if (visitados.includes(i)) continue;
-        const d = Math.hypot(coords[last].lat - coords[i].lat, coords[last].lng - coords[i].lng);
-        if (d < best) {
-          best = d;
-          prox = i;
-        }
-      }
-      visitados.push(prox);
-    }
-    return visitados;
-  }
-
-  /* ------------------------------------------------------------------
-   *  Desenhar paradas no mapa
-   * ----------------------------------------------------------------*/
-  let markers = [];
-  function desenharParadasNoMapa() {
-    markers.forEach((m) => m.setMap(null));
-    markers = [];
-    if (!coordsParadas.length) return;
-    const bounds = new google.maps.LatLngBounds();
-    coordsParadas.forEach((coord, i) => {
-      const marker = new google.maps.Marker({ position: coord, map: map, label: String(i + 1) });
-      markers.push(marker);
-      bounds.extend(coord);
-    });
-    map.fitBounds(bounds);
-  }
-
-  /* ------------------------------------------------------------------
-   *  Desenhar rota completa
-   * ----------------------------------------------------------------*/
-  function desenharRotaCompleta() {
-    if (paradas.length < 2) return;
-    const origin = paradas[0].endereco;
-    const destination = paradas[paradas.length - 1].endereco;
-    const waypoints = paradas.slice(1, -1).map((p) => ({ location: p.endereco, stopover: true }));
-    directionsService.route(
-      {
-        origin,
-        destination,
-        waypoints,
-        travelMode: google.maps.TravelMode.D
-
-        
+  </body>
+</html>
