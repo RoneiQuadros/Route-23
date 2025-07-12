@@ -1,384 +1,193 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Route 23 – Fase 2.4</title>
-
-  <!-- Ícones -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
-  <style>
-    :root{--verde:#1b5e20;--bg:#fff;--cinza:#f1f1f1}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Arial,system-ui;background:var(--bg);
-         display:flex;flex-direction:column;align-items:center}
-    header{padding:10px;text-align:center}
-    .logo{width:110px}
-    h1{margin:6px 0;color:#1b3d2f}
-
-    /* mapa ocupa largura toda */
-    #map{width:100%;height:45vh;min-height:300px;border-top:1px solid #ccc}
-
-    /* formulário */
-    #formulario{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
-                padding:10px;width:100%;max-width:700px}
-    input,button{padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
-    input{flex:1 1 180px}
-    button{background:var(--verde);color:#fff;border:none;cursor:pointer}
-
-    /* lista paradas */
-    ul{list-style:none;padding:0;margin:10px auto;width:100%;max-width:700px}
-    li{background:var(--cinza);margin:6px 0;padding:8px;border-radius:8px;
-       display:flex;justify-content:space-between;align-items:center;cursor:grab}
-    .info{text-align:left;max-width:70%;word-break:break-word}
-    .icon-btn{background:none;border:none;color:var(--verde);font-size:18px;
-              cursor:pointer;margin-left:6px}
-    .icon-btn:focus{outline:2px solid var(--verde)}
-
-    /* overlay Entregue / Não Entregue */
-    #overlay-controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
-                      background:#fff;padding:8px 12px;border-radius:8px;
-                      box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;z-index:999}
-    #overlay-controls button{min-width:100px;margin:0 4px}
-
-    /* menu flutuante */
-    #menu-overlay{position:fixed;top:70px;right:20px;background:#fff;border:1px solid #ccc;
-                  border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);
-                  display:none;flex-direction:column;z-index:998}
-    #menu-overlay button{background:none;color:#333;border:none;padding:10px 16px;
-                         font-size:14px;text-align:left;width:200px;
-                         border-bottom:1px solid #eee}
-    #menu-overlay button:last-child{border-bottom:none}
-    #menu-overlay button:hover{background:var(--cinza)}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Route 23 v2.5</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{--verde:#1b5e20;--bg:#fff;--cinza:#f1f1f1}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,system-ui;background:var(--bg);display:flex;flex-direction:column;align-items:center}
+header{padding:4px 0;text-align:center}
+.logo{width:100px}
+h1{margin:4px 0 2px;color:#1b3d2f;font-size:20px}
+#map{width:100%;height:45vh;min-height:300px;border-top:1px solid #ccc}
+#formulario{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px;width:100%;max-width:700px}
+input,button{padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+input{flex:1 1 180px}
+button{background:var(--verde);color:#fff;border:none;cursor:pointer}
+ul{list-style:none;padding:0;margin:10px auto;width:100%;max-width:700px}
+li{background:var(--cinza);margin:6px 0;padding:8px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;cursor:grab}
+.info{text-align:left;max-width:70%;word-break:break-word}
+.icon-btn{background:none;border:none;color:var(--verde);font-size:18px;cursor:pointer;margin-left:6px}
+#overlay-controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;z-index:999}
+#overlay-controls button{min-width:100px;margin:0 4px}
+#menu-overlay{position:fixed;top:70px;right:20px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;flex-direction:column;z-index:998}
+#menu-overlay button{background:none;color:#333;border:none;padding:10px 16px;font-size:14px;text-align:left;width:200px;border-bottom:1px solid #eee}
+#menu-overlay button:last-child{border-bottom:none}
+#menu-overlay button:hover{background:var(--cinza)}
+/* splash */
+#splash{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);z-index:1000;animation:fadeOut 1.5s forwards 1.2s}
+@keyframes fadeOut{to{opacity:0;visibility:hidden}}
+</style>
 </head>
-
 <body>
-  <!-- cabeçalho -->
-  <header>
-    <img src="logo.png" class="logo" alt="Logo Route 23" />
-    <h1>Route 23</h1>
-  </header>
+<div id="splash"><img src="logo.png" class="logo" alt="Logo"><h2>Route 23</h2></div>
 
-  <!-- mapa -->
-  <div id="map"></div>
+<header>
+  <img src="logo.png" class="logo" alt="Logo Route 23" />
+  <h1>Route 23</h1>
+</header>
 
-  <!-- formulário -->
-  <div id="formulario">
-    <input id="endereco" placeholder="Endereço" />
-    <button id="btn-voz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
+<div id="map"></div>
 
-    <input id="pedido" placeholder="Nº do Pedido (opcional)" />
+<!-- formulário -->
+<div id="formulario">
+  <input id="endereco" placeholder="Endereço"/>
+  <button id="btn-voz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
 
-    <button id="btn-menu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
+  <input id="pedido" placeholder="Nº do Pedido (opcional)"/>
 
-    <input id="partida" placeholder="Ponto de Partida (opcional)" />
-    <button onclick="usarMinhaLocalizacao()" title="GPS">
-      <i class="fa-solid fa-location-crosshairs"></i>
-    </button>
+  <button id="btn-menu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
 
-    <button onclick="adicionar()"><i class="fa-solid fa-plus"></i></button>
-    <button onclick="otimizarRota()">Otimizar</button>
-  </div>
+  <input id="partida" placeholder="Ponto de Partida (opcional)"/>
+  <button onclick="usarGPS()" title="GPS"><i class="fa-solid fa-location-crosshairs"></i></button>
 
-  <!-- lista -->
-  <ul id="lista"></ul>
+  <button onclick="adicionar()"><i class="fa-solid fa-plus"></i></button>
+  <button onclick="otimizarRota()">Otimizar</button>
+</div>
 
-  <!-- iniciar rota -->
-  <button id="btn-iniciar" onclick="iniciarRota()"
-          style="margin-bottom:15px;background:var(--verde);color:#fff;border:none;
-                 border-radius:6px;padding:10px 18px;font-size:16px">
-    Iniciar Rota
-  </button>
+<ul id="lista"></ul>
 
-  <!-- overlay Entregue / Não Entregue -->
-  <div id="overlay-controls">
-    <button onclick="statusEntrega('entregue')">Entregue</button>
-    <button onclick="statusEntrega('nao')">Não Entregue</button>
-  </div>
+<button id="btn-iniciar" onclick="iniciarRota()"
+  style="margin-bottom:15px;background:var(--verde);color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:16px">
+  Iniciar Rota
+</button>
 
-  <!-- menu flutuante -->
-  <div id="menu-overlay">
-    <button onclick="inverterRota()">
-      <i class="fa-solid fa-arrows-up-down"></i> Inverter rota
-    </button>
-    <button onclick="exibirListaParadas()">
-      <i class="fa-solid fa-list"></i> Lista de paradas
-    </button>
-    <button onclick="exibirCarregamento()">
-      <i class="fa-solid fa-box"></i> Lista de pedidos
-    </button>
-  </div>
+<div id="overlay-controls">
+  <button onclick="statusEntrega('entregue')">Entregue</button>
+  <button onclick="statusEntrega('nao')">Não Entregue</button>
+</div>
 
-  <!-- dependências -->
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap"
-    async defer></script>
+<div id="menu-overlay">
+  <button onclick="inverterRota()"><i class="fa-solid fa-arrows-up-down"></i> Inverter rota</button>
+  <button onclick="mostrarParadas()"><i class="fa-solid fa-list"></i> Lista de paradas</button>
+  <button onclick="mostrarPedidos()"><i class="fa-solid fa-box"></i> Lista de pedidos</button>
+</div>
 
-  <script>
-    /* ========= Variáveis ========= */
-    let map, dirService, dirRenderer, acAddr, acStart, sortable;
-    let paradas = [], coordsParadas = [], markers = [];
-    let pontoPartida = null, coordsPartida = null;
-    const LS = "route23_paradas", LS_START = "route23_partida";
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
+<script>
+/* ======== VARS ======== */
+let map, dirSvc, dirRend, acEnd, acStart, sortable;
+let paradas=[], coords=[], markers=[];
+let startLabel=null, startCoords=null;
+const LS='r23_paradas', LS_START='r23_start';
 
-    /* ========= Mapa & Autocomplete ========= */
-    window.initMap = () => {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -14.235, lng: -51.9253 },
-        zoom: 4
-      });
-      dirService  = new google.maps.DirectionsService();
-      dirRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
-      dirRenderer.setMap(map);
+/* ======== INIT MAP ======== */
+function initMap(){
+  map=new google.maps.Map(document.getElementById('map'),{center:{lat:-14.235,lng:-51.9253},zoom:4});
+  dirSvc=new google.maps.DirectionsService();
+  dirRend=new google.maps.DirectionsRenderer({suppressMarkers:true});
+  dirRend.setMap(map);
 
-      acAddr  = new google.maps.places.Autocomplete(
-        document.getElementById("endereco"),
-        { types: ["geocode"], componentRestrictions: { country: "br" } });
+  acEnd   =new google.maps.places.Autocomplete(document.getElementById('endereco'),{componentRestrictions:{country:'br'}});
+  acStart =new google.maps.places.Autocomplete(document.getElementById('partida'), {componentRestrictions:{country:'br'}});
+  loadLS();
+}
 
-      acStart = new google.maps.places.Autocomplete(
-        document.getElementById("partida"),
-        { types: ["geocode"], componentRestrictions: { country: "br" } });
+/* ======== STORAGE ======== */
+function saveLS(){localStorage.setItem(LS,JSON.stringify(paradas));localStorage.setItem(LS_START,JSON.stringify({startLabel,startCoords}));}
+function loadLS(){
+  paradas=JSON.parse(localStorage.getItem(LS)||'[]');
+  coords =paradas.map(p=>p.coords);
+  const s=JSON.parse(localStorage.getItem(LS_START)||'null');
+  if(s){startLabel=s.startLabel;startCoords=s.startCoords;document.getElementById('partida').value=startLabel||'';}
+  refreshList(); drawPins(); drawRoute();
+}
 
-      carregarLS();
-    };
+/* ======== UTIL ======== */
+const geocode=a=>new Promise(r=>new google.maps.Geocoder().geocode({address:a},(res,s)=>{if(s==='OK'){const l=res[0].geometry.location;r({lat:l.lat(),lng:l.lng()});}else r(null);} ));
+const nearest=o=>{const n=o.length,v=[0];while(v.length<n){const last=v.at(-1);let best=1e9,next=-1;for(let i=0;i<n;i++){if(v.includes(i))continue;const d=Math.hypot(o[last].lat-o[i].lat,o[last].lng-o[i].lng);if(d<best){best=d;next=i;}}v.push(next);}return v;};
 
-    /* ========= util geocode ========= */
-    const geocode = addr =>
-      new Promise(res =>
-        new google.maps.Geocoder().geocode({ address: addr }, (r, s) => {
-          if (s === "OK") {
-            const l = r[0].geometry.location;
-            res({ lat: l.lat(), lng: l.lng() });
-          } else res(null);
-        }));
+/* ======== LIST CRUD ======== */
+async function adicionar(){
+  const end=document.getElementById('endereco').value.trim(); if(!end)return;
+  const ped=document.getElementById('pedido').value.trim();
+  const c=await geocode(end);
+  paradas.unshift({pedido:ped,endereco:end,coords:c});
+  coords.unshift(c);
+  document.getElementById('endereco').value='';document.getElementById('pedido').value='';
+  refreshList();drawPins();drawRoute();saveLS();
+}
+function duplicar(i){
+  const novoPed=prompt('Novo nº pedido?',paradas[i].pedido||''); if(novoPed===null)return;
+  paradas.splice(i+1,0,{...paradas[i],pedido:novoPed});
+  coords .splice(i+1,0,coords[i]);
+  refreshList();saveLS();
+}
+async function editar(i){
+  const nEnd=prompt('Novo endereço',paradas[i].endereco); if(nEnd===null)return;
+  const nPed=prompt('Novo nº pedido (opcional)',paradas[i].pedido||''); if(nPed===null)return;
+  const c=await geocode(nEnd);
+  paradas[i]={pedido:nPed,endereco:nEnd,coords:c}; coords[i]=c;
+  refreshList();drawPins();drawRoute();saveLS();
+}
+function excluir(i){paradas.splice(i,1);coords.splice(i,1);refreshList();drawPins();drawRoute();saveLS();}
 
-    /* ========= localStorage ========= */
-    const salvarLS = () => {
-      localStorage.setItem(LS, JSON.stringify(paradas));
-      localStorage.setItem(LS_START,
-        JSON.stringify({ pontoPartida, coordsPartida }));
-    };
+function refreshList(){
+  const ul=document.getElementById('lista'); ul.innerHTML='';
+  paradas.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<div class="info"><strong>${p.pedido||'-'}</strong><br>${p.endereco}</div>
+      <div>
+        <button class="icon-btn" onclick="duplicar(${i})"><i class="fa-solid fa-clone"></i></button>
+        <button class="icon-btn" onclick="editar(${i})"><i class="fa-solid fa-pen"></i></button>
+        <button class="icon-btn" onclick="excluir(${i})"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+    ul.appendChild(li);
+  });
+  if(!sortable)sortable=new Sortable(ul,{animation:150,onEnd:()=>{
+    const itens=[...ul.children]; paradas=itens.map(li=>paradas[[...itens].indexOf(li)]); coords=paradas.map(p=>p.coords);
+    drawPins(); drawRoute(); saveLS();
+  }});
+}
 
-    function carregarLS() {
-      paradas       = JSON.parse(localStorage.getItem(LS) || "[]");
-      coordsParadas = paradas.map(p => p.coords || null);
+/* ======== START POINT ======== */
+function usarGPS(){if(!navigator.geolocation)return alert('Sem GPS');navigator.geolocation.getCurrentPosition(pos=>{startCoords={lat:pos.coords.latitude,lng:pos.coords.longitude};startLabel='GPS';document.getElementById('partida').value='GPS';drawPins();drawRoute();saveLS();});}
 
-      const start = JSON.parse(localStorage.getItem(LS_START) || "null");
-      if (start) {
-        pontoPartida = start.pontoPartida;
-        coordsPartida = start.coordsPartida;
-        document.getElementById("partida").value = pontoPartida || "";
-      }
-      atualizarLista();
-      desenharParadas();
-      desenharRota();
-    }
+/* ======== OPTIMIZE & INVERT ======== */
+function otimizarRota(){if(coords.length<2)return;const ord=nearest(coords);paradas=ord.map(i=>paradas[i]);coords=ord.map(i=>coords[i]);refreshList();drawPins();drawRoute();saveLS();}
+function inverterRota(){paradas.reverse();coords.reverse();refreshList();drawPins();drawRoute();saveLS();menu.style.display='none';}
 
-    /* ========= CRUD ========= */
-    async function adicionar() {
-      const end = document.getElementById("endereco").value.trim();
-      if (!end) return;
-      const pedal = document.getElementById("pedido").value.trim();
-      const c = await geocode(end);
-      paradas.unshift({ id: Date.now(), pedido: pedal,
-                        endereco: end, coords: c });
-      coordsParadas.unshift(c);
+/* ======== MAP ======== */
+function drawPins(){
+  markers.forEach(m=>m.setMap(null));markers=[];
+  const b=new google.maps.LatLngBounds();
+  if(startCoords){markers.push(new google.maps.Marker({position:startCoords,map,label:'S'}));b.extend(startCoords);}
+  coords.forEach((c,i)=>{if(!c)return;markers.push(new google.maps.Marker({position:c,map,label:String(i+1)}));b.extend(c);});
+  if(!b.isEmpty())map.fitBounds(b);
+}
+function drawRoute(){if(!startCoords||coords.length<1)return;dirSvc.route({origin:startCoords,destination:paradas.at(-1).endereco,waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),travelMode:'DRIVING'},(res,s)=>{if(s==='OK')dirRend.setDirections(res);});}
 
-      document.getElementById("endereco").value = "";
-      document.getElementById("pedido").value   = "";
-      atualizarLista(); desenharParadas(); desenharRota(); salvarLS();
-    }
+/* ======== NAVIGATION ======== */
+function iniciarRota(){if(paradas.length===0)return alert('Sem paradas');document.getElementById('overlay-controls').style.display='block';openNav(paradas[0].endereco);}
+function statusEntrega(t){if(t==='entregue'){paradas.shift();coords.shift();}else{paradas.push(paradas.shift());coords.push(coords.shift());}if(paradas.length===0){document.getElementById('overlay-controls').style.display='none';saveLS();return;}drawPins();drawRoute();openNav(paradas[0].endereco);refreshList();saveLS();}
+const openNav=dest=>window.location.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving&dir_action=navigate`;
 
-    async function duplicar(id) {
-      const idx = paradas.findIndex(p => p.id === id);
-      const novoPed = prompt("Novo nº do pedido?",
-                             paradas[idx].pedido || "");
-      if (novoPed === null) return;
-      const clone = { ...paradas[idx], id: Date.now(), pedido: novoPed };
-      paradas.splice(idx + 1, 0, clone);
-      coordsParadas.splice(idx + 1, 0, clone.coords);
-      atualizarLista(); salvarLS();
-    }
+/* ======== MENU ======== */
+const menu=document.getElementById('menu-overlay');document.getElementById('btn-menu').onclick=()=>menu.style.display=menu.style.display==='flex'?'none':'flex';
+function mostrarParadas(){alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||'-'}\n${p.endereco}`).join('\n\n'));menu.style.display='none';}
+function mostrarPedidos(){alert(paradas.slice().reverse().map(p=>p.pedido||'-').join('\n'));menu.style.display='none';}
 
-    async function editar(id) {
-      const idx = paradas.findIndex(p => p.id === id);
-      const novoEnd = prompt("Novo endereço",
-                             paradas[idx].endereco);
-      if (novoEnd === null) return;
-      const novoPed = prompt("Novo nº pedido (opcional)",
-                             paradas[idx].pedido || "");
-      if (novoPed === null) return;
-      const c = await geocode(novoEnd);
-      paradas[idx]      = { ...paradas[idx],
-                            endereco: novoEnd, pedido: novoPed, coords: c };
-      coordsParadas[idx] = c;
-      atualizarLista(); desenharParadas(); desenharRota(); salvarLS();
-    }
-
-    function excluir(id) {
-      const idx = paradas.findIndex(p => p.id === id);
-      paradas.splice(idx, 1); coordsParadas.splice(idx, 1);
-      atualizarLista(); desenharParadas(); desenharRota(); salvarLS();
-    }
-
-    /* ========= lista & sortable ========= */
-    function atualizarLista() {
-      const ul = document.getElementById("lista");
-      ul.innerHTML = "";
-      paradas.forEach(p => {
-        const li = document.createElement("li");
-        li.innerHTML =
-          `<div class="info"><strong>${p.pedido || "-"}</strong><br>${p.endereco}</div>` +
-          `<div>` +
-          `<button class="icon-btn" onclick="duplicar(${p.id})"><i class="fa-solid fa-clone"></i></button>` +
-          `<button class="icon-btn" onclick="editar(${p.id})"><i class="fa-solid fa-pen"></i></button>` +
-          `<button class="icon-btn" onclick="excluir(${p.id})"><i class="fa-solid fa-trash"></i></button>` +
-          `</div>`;
-        li.dataset.id = p.id;
-        ul.appendChild(li);
-      });
-
-      if (!sortable)
-        sortable = new Sortable(ul,{
-          animation:150,
-          onEnd:() => {
-            const ids=[...ul.children].map(li=>Number(li.dataset.id));
-            paradas       = ids.map(i=>paradas.find(p=>p.id===i));
-            coordsParadas = paradas.map(p=>p.coords);
-            desenharParadas(); desenharRota(); salvarLS();
-          }
-        });
-    }
-
-    /* ========= partida ========= */
-    function usarMinhaLocalizacao() {
-      if (!navigator.geolocation) return alert("Sem GPS");
-      navigator.geolocation.getCurrentPosition(pos => {
-        coordsPartida = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        pontoPartida  = "GPS";
-        document.getElementById("partida").value = "GPS";
-        desenharParadas(); desenharRota(); salvarLS();
-      });
-    }
-
-    /* ========= otimizar / inverter ========= */
-    const ordemVizinho = c => {
-      const n=c.length, v=[0];
-      while (v.length < n) {
-        const last=v[v.length-1];
-        let next=-1,best=1e9;
-        for(let i=0;i<n;i++){
-          if(v.includes(i))continue;
-          const d=Math.hypot(c[last].lat-c[i].lat,
-                             c[last].lng-c[i].lng);
-          if(d<best){best=d; next=i;}
-        }
-        v.push(next);
-      }
-      return v;
-    };
-
-    function otimizarRota() {
-      if (coordsParadas.length < 2) return;
-      const ord = ordemVizinho(coordsParadas);
-      paradas       = ord.map(i=>paradas[i]);
-      coordsParadas = ord.map(i=>coordsParadas[i]);
-      atualizarLista(); desenharParadas(); desenharRota(); salvarLS();
-    }
-
-    function inverterRota() {
-      paradas.reverse(); coordsParadas.reverse();
-      atualizarLista(); desenharParadas(); desenharRota(); salvarLS();
-      esconderMenu();
-    }
-
-    /* ========= mapa ========= */
-    function desenharParadas() {
-      markers.forEach(m=>m.setMap(null)); markers = [];
-
-      const b=new google.maps.LatLngBounds();
-      if (coordsPartida) {
-        markers.push(new google.maps.Marker({
-          position:coordsPartida, map, label:"S"
-        }));
-        b.extend(coordsPartida);
-      }
-      coordsParadas.forEach((c,i)=>{
-        if(!c)return;
-        markers.push(new google.maps.Marker({
-          position:c, map, label:String(i+1)
-        }));
-        b.extend(c);
-      });
-      if (!b.isEmpty()) map.fitBounds(b);
-    }
-
-    function desenharRota() {
-      if (!coordsPartida || coordsParadas.length < 1) return;
-      dirService.route({
-        origin:coordsPartida,
-        destination:paradas.at(-1).endereco,
-        waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),
-        travelMode:google.maps.TravelMode.DRIVING
-      }, (res,status)=>{
-        if(status==="OK") dirRenderer.setDirections(res);
-      });
-    }
-
-    /* ========= navegação ========= */
-    function abrirNav(dest){
-      window.location.href=
-        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving&dir_action=navigate`;
-    }
-    function iniciarRota(){
-      if(paradas.length===0) return alert("Sem paradas");
-      document.getElementById("overlay-controls").style.display="block";
-      abrirNav(paradas[0].endereco);
-    }
-    function statusEntrega(tipo){
-      if(tipo==="entregue"){paradas.shift(); coordsParadas.shift();}
-      else{
-        paradas.push(paradas.shift());
-        coordsParadas.push(coordsParadas.shift());
-      }
-      if(paradas.length===0){
-        document.getElementById("overlay-controls").style.display="none";
-        salvarLS(); return;
-      }
-      desenharParadas(); desenharRota();
-      abrirNav(paradas[0].endereco);
-      atualizarLista(); salvarLS();
-    }
-
-    /* ========= menu ========= */
-    const menuBtn     = document.getElementById("btn-menu"),
-          menuOverlay = document.getElementById("menu-overlay");
-    menuBtn.addEventListener("click",
-      ()=> menuOverlay.style.display = menuOverlay.style.display==="flex" ? "none" : "flex");
-    function esconderMenu(){menuOverlay.style.display="none";}
-    function exibirListaParadas(){
-      alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||"-"}\\n${p.endereco}`).join("\\n\\n"));
-      esconderMenu();
-    }
-    function exibirCarregamento(){
-      alert(paradas.slice().reverse().map((p,i)=>`${i+1}. ${p.pedido||"-"}`).join("\\n"));
-      esconderMenu();
-    }
-
-    /* ========= voz ========= */
-    if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){
-      const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-      const rec=new SR(); rec.lang='pt-BR';
-      document.getElementById("btn-voz").onclick=()=>rec.start();
-      rec.onresult=e=>{
-        document.getElementById("endereco").value =
-          e.results[0][0].transcript;
-      };
-    }
-  </script>
+/* ======== VOZ ======== */
+if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new SR(); rec.lang='pt-BR';
+  document.getElementById('btn-voz').onclick=()=>rec.start();
+  rec.onresult=e=>{document.getElementById('endereco').value=e.results[0][0].transcript};
+}
+</script>
 </body>
 </html>
