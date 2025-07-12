@@ -1,121 +1,132 @@
-<!DOCTYPE html><html lang="pt-BR">
+
+<!DOCTYPE html>
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Route 23 – Fase 2.3</title><!-- Font Awesome para ícones -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <title>Route 23 – Fase 2</title>
 
-<style>
-  :root{--verde:#1b5e20;}
-  body{margin:0;font-family:Arial,system-ui;display:flex;flex-direction:column;align-items:center;background:#fff}
-  header{padding:10px;text-align:center}
-  .logo{width:110px}
-  h1{margin:6px 0;color:#1b3d2f}
-  #map{width:100%;height:45vh;min-height:300px;border-top:1px solid #ccc}
-  #formulario{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px 0;width:100%;max-width:700px}
-  input,button{padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
-  input{flex:1 1 180px}
-  button{background:var(--verde);color:#fff;border:none;cursor:pointer}
-  ul{list-style:none;padding:0;margin:10px auto;width:100%;max-width:700px}
-  li{background:#f1f1f1;margin:6px 0;padding:8px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;cursor:grab}
-  .info{text-align:left;max-width:70%}
-  .icon-btn{background:none;border:none;color:var(--verde);font-size:18px;cursor:pointer;margin-left:6px}
-  #overlay-controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.95);padding:8px 12px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;z-index:999}
-  #overlay-controls button{min-width:100px;margin:0 4px}
-</style>
-
+    <style>
+      body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
+      .logo { width: 100px; height: auto; margin-bottom: 10px; }
+      h1 { color: #1b3d2f; margin-bottom: 10px; }
+      input { padding: 10px; margin: 5px; width: 90%; max-width: 400px; }
+      button { padding: 10px; margin: 5px; width: 30%; min-width: 120px; background: #1b5e20; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+      ul { list-style: none; padding: 0; margin-top: 20px; }
+      li { background: #f1f1f1; margin: 10px auto; padding: 10px; border-radius: 8px; width: 90%; max-width: 500px; cursor: grab; }
+      #map { height: 380px; width: 100%; max-width: 600px; margin: 0 auto 20px; border-radius: 8px; }
+      .btn-entrega { display: none; }
+      #overlay-controls { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,.95); padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.25); display: none; z-index: 999; }
+    </style>
   </head>
   <body>
-    <header>
-      <img src="logo.png" class="logo" alt="Logo Route 23" />
-      <h1>Route 23</h1>
-    </header><div id="map"></div>
+    <img src="logo.png" class="logo" alt="Logo Route 23" />
+    <h1>Route 23</h1>
 
-<!-- formulário -->
-<div id="formulario">
-  <input id="endereco" placeholder="Endereço" />
-  <button id="btn-voz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
-  <input id="pedido" placeholder="Nº do Pedido (opcional)" />
-  <button id="btn-menu" title="Opções"><i class="fa-solid fa-bars"></i></button>
-  <input id="partida" placeholder="Ponto de Partida (opcional)" />
-  <button onclick="usarMinhaLocalizacao()" title="GPS"><i class="fa-solid fa-location-crosshairs"></i></button>
-  <button onclick="adicionar()"><i class="fa-solid fa-plus"></i></button>
-  <button onclick="otimizarRota()">Otimizar</button>
-</div>
+    <div id="map"></div>
 
-<ul id="lista"></ul>
+    <input id="partida" type="text" placeholder="Ponto de Partida ou deixe em branco para GPS" />
+    <button onclick="usarMinhaLocalizacao()">Usar Minha Localização</button>
+    <br />
 
-<button onclick="iniciarRota()" style="margin-bottom:15px;background:var(--verde);color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:16px">Iniciar Rota</button>
+    <input id="pedido" type="text" placeholder="Número do Pedido" />
+    <input id="endereco" type="text" placeholder="Endereço" />
+    <br />
+    <button onclick="adicionar()">Adicionar</button>
+    <button onclick="otimizarRota()">Otimizar Rota</button>
+    <button onclick="iniciarRota()">Iniciar Rota</button>
 
-<div id="overlay-controls">
-  <button onclick="statusEntrega('entregue')">Entregue</button>
-  <button onclick="statusEntrega('nao')">Não Entregue</button>
-</div>
+    <ul id="lista"></ul>
 
-<!-- dependências -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
+    <div id="overlay-controls">
+      <button onclick="statusEntrega('entregue')">Entregue</button>
+      <button onclick="statusEntrega('nao')">Não Entregue</button>
+    </div>
 
-<script>
-  /* ===== variáveis ===== */
-  let map,dirService,dirRenderer,autocompleteAddr,autocompleteStart,sortable;
-  let paradas=[],coordsParadas=[],markers=[],pontoPartida=null,coordsPartida=null;
-  const LS='route23_paradas', LS_START='route23_partida';
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
 
-  /* ===== init ===== */
-  window.initMap=()=>{
-    map=new google.maps.Map(document.getElementById('map'),{center:{lat:-14.235,lng:-51.9253},zoom:4});
-    dirService=new google.maps.DirectionsService();
-    dirRenderer=new google.maps.DirectionsRenderer({suppressMarkers:true});
-    dirRenderer.setMap(map);
-    autocompleteAddr=new google.maps.places.Autocomplete(document.getElementById('endereco'),{types:['geocode'],componentRestrictions:{country:'br'}});
-    autocompleteStart=new google.maps.places.Autocomplete(document.getElementById('partida'),{types:['geocode'],componentRestrictions:{country:'br'}});
-    carregarLS();
-  };
+    <script>
+      let map, dirService, dirRenderer, autocomplete, sortable;
+      let paradas = [], coordsParadas = [], routeStarted = false, markers = [];
+      let pontoPartida = null, coordsPartida = null, currentIndex = 0;
 
-  /* ===== geocode util ===== */
-  const geocode=a=>new Promise(r=>new google.maps.Geocoder().geocode({address:a},(res,s)=>{if(s==='OK'){const l=res[0].geometry.location;r({lat:l.lat(),lng:l.lng()});}else r(null);}));
+      window.initMap = function () {
+        map = new google.maps.Map(document.getElementById('map'), { center: { lat: -14.235, lng: -51.9253 }, zoom: 4 });
+        dirService = new google.maps.DirectionsService();
+        dirRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+        dirRenderer.setMap(map);
+        autocomplete = new google.maps.places.Autocomplete(document.getElementById('endereco'), { types: ['geocode'], componentRestrictions: { country: 'br' }, fields: ['formatted_address','geometry'] });
+      }
 
-  /* ===== localStorage ===== */
-  function salvarLS(){localStorage.setItem(LS,JSON.stringify(paradas));localStorage.setItem(LS_START,JSON.stringify({pontoPartida,coordsPartida}));}
-  async function carregarLS(){const saved=localStorage.getItem(LS);if(saved){paradas=JSON.parse(saved);coordsParadas=paradas.map(p=>p.coords);}const st=localStorage.getItem(LS_START);if(st){const d=JSON.parse(st);pontoPartida=d.pontoPartida;coordsPartida=d.coordsPartida;document.getElementById('partida').value=pontoPartida||'';}atualizarLista();desenharParadas();desenharRota();}
+      function usarMinhaLocalizacao(){
+        if(!navigator.geolocation){ alert('Navegador sem suporte a geolocalização'); return; }
+        navigator.geolocation.getCurrentPosition(pos=>{
+          coordsPartida = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          pontoPartida = 'Minha Localização';
+          document.getElementById('partida').value = pontoPartida;
+          desenharParadasNoMapa();
+        }, ()=>alert('Não consegui obter localização.'));
+      }
 
-  /* ===== adicionar/duplicar/excluir/editar ===== */
-  async function adicionar(){const end=document.getElementById('endereco').value.trim();if(!end) return;const ped=document.getElementById('pedido').value.trim();const c=await geocode(end);paradas.unshift({pedido:ped,endereco:end,coords:c});coordsParadas.unshift(c);document.getElementById('endereco').value='';document.getElementById('pedido').value='';atualizarLista();desenharParadas();desenharRota();salvarLS();}
-  function duplicar(i){const novoPedido=prompt('Novo nº do pedido?',paradas[i].pedido||'');if(novoPedido===null)return;paradas.splice(i+1,0,{...paradas[i],pedido:novoPedido});coordsParadas.splice(i+1,0,coordsParadas[i]);atualizarLista();salvarLS();}
-  function excluir(i){paradas.splice(i,1);coordsParadas.splice(i,1);atualizarLista();desenharParadas();desenharRota();salvarLS();}
-  async function editar(i){const novoEnd=prompt('Novo endereço:',paradas[i].endereco);if(novoEnd===null) return;const novoPed=prompt('Novo nº pedido (opcional):',paradas[i].pedido||'');const c=await geocode(novoEnd);paradas[i]={pedido:novoPed,endereco:novoEnd,coords:c};coordsParadas[i]=c;atualizarLista();desenharParadas();desenharRota();salvarLS();}
+      function adicionar(){
+        const pedido=document.getElementById('pedido').value.trim();
+        const end=document.getElementById('endereco').value.trim();
+        if(!pedido||!end) return;
+        paradas.unshift({ pedido,endereco:end });
+        document.getElementById('pedido').value='';
+        document.getElementById('endereco').value='';
+        atualizarLista();
+      }
 
-  function atualizarLista(){const ul=document.getElementById('lista');ul.innerHTML='';paradas.forEach((p,i)=>{const li=document.createElement('li');li.dataset.index=i;li.innerHTML=`<div class='info'><strong>${p.pedido||'-'}</strong><br>${p.endereco}</div><div><button class='icon-btn' onclick='duplicar(${i})'><i class='fa-solid fa-clone'></i></button><button class='icon-btn' onclick='editar(${i})'><i class='fa-solid fa-pen'></i></button><button class='icon-btn' onclick='excluir(${i})'><i class='fa-solid fa-trash'></i></button></div>`;ul.appendChild(li);});if(!sortable)sortable=new Sortable(ul,{animation:150,onEnd:()=>{const lis=[...document.querySelectorAll('#lista li')];paradas=lis.map(li=>paradas[li.dataset.index]);coordsParadas=lis.map(li=>coordsParadas[li.dataset.index]);desenharParadas();desenharRota();salvarLS();}});}
+      function atualizarLista(){
+        const ul=document.getElementById('lista'); ul.innerHTML='';
+        paradas.forEach((p,i)=>{ const li=document.createElement('li'); li.dataset.index=i; li.innerHTML=`<strong>${p.pedido}</strong><br>${p.endereco}`; ul.appendChild(li); });
+        if(!sortable) sortable=new Sortable(ul,{ animation:150, onEnd:reorderByDOM });
+      }
+      function reorderByDOM(){ const itens=[...document.querySelectorAll('#lista li')]; paradas=itens.map(li=>paradas[li.dataset.index]); desenharParadasNoMapa(); desenharRotaCompleta(); }
 
-  /* ===== partida & gps ===== */
-  function usarMinhaLocalizacao(){if(!navigator.geolocation)return alert('Sem GPS');navigator.geolocation.getCurrentPosition(pos=>{coordsPartida={lat:pos.coords.latitude,lng:pos.coords.longitude};pontoPartida='GPS';document.getElementById('partida').value='GPS';desenharParadas();desenharRota();salvarLS();});}
+      async function otimizarRota(){
+        if(paradas.length<2){ alert('Adicione 2+ paradas.'); return; }
+        await prepararPartida();
+        const coords=await Promise.all(paradas.map(p=>geocode(p.endereco)));
+        if(coords.includes(null)) return alert('Falhou geocodificação');
+        const order=ordemVizinho(coords);
+        paradas=order.map(i=>paradas[i]); coordsParadas=order.map(i=>coords[i]);
+        atualizarLista(); desenharParadasNoMapa(); desenharRotaCompleta();
+      }
 
-  /* ===== otimizar / inverter ===== */
-  function otimizarRota(){if(coordsParadas.length<2)return;const ordem=[...coordsParadas.keys()].sort((a,b)=>a-b); // placeholder vizinho já feito antes
-    const ord=ordemVizinho(coordsParadas);paradas=ord.map(i=>paradas[i]);coordsParadas=ord.map(i=>coordsParadas[i]);atualizarLista();desenharParadas();desenharRota();salvarLS();}
-  function inverterRota(){paradas.reverse();coordsParadas.reverse();atualizarLista();desenharParadas();desenharRota();salvarLS();}
+      function ordemVizinho(c){
+        const n=c.length,v=[0]; while(v.length<n){const last=v[v.length-1];let b=1e9,p=-1; for(let i=0;i<n;i++){ if(v.includes(i))continue; const d=Math.hypot(c[last].lat-c[i].lat,c[last].lng-c[i].lng); if(d<b){b=d;p=i;} } v.push(p);} return v;
+      }
 
-  /* ===== mapa ===== */
-  function desenharParadas(){markers.forEach(m=>m.setMap(null));markers=[];const b=new google.maps.LatLngBounds();if(coordsPartida){markers.push(new google.maps.Marker({position:coordsPartida,map,label:'S'}));b.extend(coordsPartida);}coordsParadas.forEach((c,i)=>{if(!c)return;markers.push(new google.maps.Marker({position:c,map,label:String(i+1)}));b.extend(c);});if(!b.isEmpty())map.fitBounds(b);}
-  function desenharRota(){if(!coordsPartida||coordsParadas.length<1)return;dirService.route({origin:coordsPartida,destination:paradas.at(-1).endereco,waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),travelMode:google.maps.TravelMode.DRIVING},(res,s)=>{if(s==='OK')dirRenderer.setDirections(res);});}
+      async function prepararPartida(){ const txt=document.getElementById('partida').value.trim(); if(txt){ pontoPartida=txt; coordsPartida=await geocode(txt); } }
 
-  /* ===== iniciar rota ===== */
-  function iniciarRota(){if(paradas.length===0)return alert('Sem paradas');document.getElementById('overlay-controls').style.display='block';abrirNav(paradas[0].endereco);}
-  function statusEntrega(t){if(t==='entregue'){paradas.shift();coordsParadas.shift();}else{paradas.push(paradas.shift());coordsParadas.push(coordsParadas.shift());}if(paradas.length===0){document.getElementById('overlay-controls').style.display='none';return;}desenharParadas();desenharRota();abrirNav(paradas[0].endereco);atualizarLista();salvarLS();}
-  function abrirNav(dest){window.location.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving&dir_action=navigate`;}
+      function geocode(addr){ return new Promise(res=> new google.maps.Geocoder().geocode({address:addr},(r,s)=>{ if(s==='OK'){ const l=r[0].geometry.location; res({lat:l.lat(),lng:l.lng()}); } else {res(null);} })); }
 
-  /* ===== menu extra ===== */
-  document.getElementById('btn-menu').addEventListener('click',()=>{
-    const op=prompt('Escolha:\n1 Inverter rota\n2 Lista de paradas\n3 Carregamento');
-    if(op==='1')inverterRota();
-    else if(op==='2'){alert(paradas.map((p,i)=>`${i+1} - ${p.pedido||'-'}\n${p.endereco}`).join('\n\n'));}
-    else if(op==='3'){alert(paradas.slice().reverse().map(p=>p.pedido||'-').join('\n'));}
-  });
+      function desenharParadasNoMapa(){
+        markers.forEach(m=>m.setMap(null)); markers=[];
+        const bounds=new google.maps.LatLngBounds();
+        if(coordsPartida){ const mk=new google.maps.Marker({position:coordsPartida,map,label:'S'}); markers.push(mk); bounds.extend(coordsPartida);}
+        coordsParadas.forEach((c,i)=>{ const mk=new google.maps.Marker({position:c,map,label:String(i+1)}); markers.push(mk); bounds.extend(c);});
+        if(!bounds.isEmpty()) map.fitBounds(bounds);
+      }
 
-  /* ===== reconhecimento de voz ===== */
-  if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;const rec=new SR();rec.lang='pt-BR';let targetInput=document.getElementById('endereco');document.getElementById('btn-voz').onclick=()=>{rec.start();};rec.onresult=e=>{const txt=e.results[0][0].transcript;targetInput.value=txt;};}
-</script>
+      function desenharRotaCompleta(){
+        if(paradas.length<1||!coordsPartida)return;
+        dirService.route({ origin: coordsPartida, destination: paradas[paradas.length-1].endereco, waypoints: paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})), travelMode:google.maps.TravelMode.DRIVING }, (res,s)=>{ if(s==='OK') dirRenderer.setDirections(res); });
+      }
 
+      function iniciarRota(){ if(paradas.length===0){ alert('Sem paradas.'); return; } routeStarted=true; document.getElementById('overlay-controls').style.display='block'; navegar(paradas[0].endereco); }
+
+      function statusEntrega(tipo){
+        if(tipo==='entregue'){ paradas.shift(); coordsParadas.shift(); }
+        else { paradas.push(paradas.shift()); coordsParadas.push(coordsParadas.shift()); }
+        if(paradas.length===0){ document.getElementById('overlay-controls').style.display='none'; routeStarted=false; return; }
+        desenharParadasNoMapa(); desenharRotaCompleta(); navegar(paradas[0].endereco); atualizarLista();
+      }
+
+      function navegar(end){ window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(end)}&travelmode=driving`,'_blank'); }
+    </script>
   </body>
 </html>
