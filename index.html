@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Route 23 v2.8</title>
+<title>Route 23 v2.8.1</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <style>
 :root{--verde:#1b5e20;--bg:#fff;--cinza:#f1f1f1;--bordas:12px}
@@ -34,15 +34,15 @@ li.entregue{opacity:.4}
 
 <div style="display:flex;gap:8px;margin:8px 0">
   <button onclick="novaRota()" style="background:#d32f2f"><i class="fa-solid fa-broom"></i> Nova rota</button>
-  <button id="btn-iniciar" onclick="iniciar()"><i class="fa-solid fa-play"></i> Iniciar rota</button>
+  <button id="btnIniciar" onclick="iniciar()"><i class="fa-solid fa-play"></i> Iniciar rota</button>
 </div>
 
 <div id="formulario">
   <input id="endereco" placeholder="Endereço">
-  <button id="btn-voz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
+  <button id="btnVoz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
 
   <input id="pedido" placeholder="Nº do Pedido (opcional)">
-  <button id="btn-menu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
+  <button id="btnMenu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
 
   <input id="partida" placeholder="Ponto de Partida (opcional)">
   <button onclick="usarGPS()" title="GPS"><i class="fa-solid fa-location-crosshairs"></i></button>
@@ -54,8 +54,8 @@ li.entregue{opacity:.4}
 <ul id="lista"></ul>
 
 <div id="overlay">
-  <button onclick="status('entregue')">Entregue</button>
-  <button onclick="status('nao')">Não Entregue</button>
+  <button onclick="statusEntrega('entregue')">Entregue</button>
+  <button onclick="statusEntrega('nao')">Não Entregue</button>
 </div>
 
 <div id="menu">
@@ -67,11 +67,16 @@ li.entregue{opacity:.4}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
 <script>
+/* ======= Globais ======= */
 let map,svc,rend,acEnd,acStart,sortable;
 let paradas=[],coords=[],markers=[];
-let startLabel=null,startCoords=null,overlayOn=false;
+let startCoords=null,startLabel=null,overlayOn=false;
 const LS='r23_paradas',LS_S='r23_start',LS_OV='r23_overlay';
 
+/* ======= Splash fallback ======= */
+setTimeout(()=>document.getElementById('splash').style.display='none',4000);
+
+/* ======= Maps ======= */
 function initMap(){
   map=new google.maps.Map(document.getElementById('map'),{center:{lat:-14.2,lng:-51.9},zoom:4});
   svc=new google.maps.DirectionsService();
@@ -80,47 +85,87 @@ function initMap(){
   acStart=new google.maps.places.Autocomplete(document.getElementById('partida'),{componentRestrictions:{country:'br'}});
   document.getElementById('splash').style.display='none';
   load();
-  if(localStorage.getItem(LS_OV)==='1'){overlayOn=true;document.getElementById('overlay').style.display='flex';}
 }
 
+/* ======= Storage ======= */
 const save=()=>{localStorage.setItem(LS,JSON.stringify(paradas));localStorage.setItem(LS_S,JSON.stringify({startLabel,startCoords}));localStorage.setItem(LS_OV,overlayOn?'1':'0');}
-function load(){paradas=JSON.parse(localStorage.getItem(LS)||'[]');coords=paradas.map(p=>p.coords);const s=JSON.parse(localStorage.getItem(LS_S)||'null');if(s){startLabel=s.startLabel;startCoords=s.startCoords;document.getElementById('partida').value=startLabel||'';}refresh();drawAll();}
+function load(){
+  paradas=JSON.parse(localStorage.getItem(LS)||'[]');
+  coords=paradas.map(p=>p.coords);
+  const st=JSON.parse(localStorage.getItem(LS_S)||'null');
+  if(st){startLabel=st.startLabel;startCoords=st.startCoords;document.getElementById('partida').value=startLabel||'';}
+  overlayOn=localStorage.getItem(LS_OV)==='1';
+  document.getElementById('overlay').style.display=overlayOn?'flex':'none';
+  refresh();drawAll();
+}
+
+/* ======= Geocode helper ======= */
 const geo=a=>new Promise(r=>new google.maps.Geocoder().geocode({address:a},(res,s)=>s==='OK'?r({lat:res[0].geometry.location.lat(),lng:res[0].geometry.location.lng()}):r(null)));
 
-window.novaRota=()=>{paradas=[];coords=[];overlayOn=false;document.getElementById('overlay').style.display='none';refresh();drawAll();save();}
+/* ======= CRUD ======= */
+function adicionar(){
+  const end=endereco.value.trim(); if(!end)return;
+  const ped=pedido.value.trim();
+  geo(end).then(c=>{
+    paradas.unshift({pedido:ped,endereco:end,coords:c,done:false});
+    coords.unshift(c); endereco.value=''; pedido.value='';
+    refresh();drawAll();save();
+  });
+}
+function duplicar(i){
+  const np=prompt('Novo nº pedido',paradas[i].pedido||''); if(np===null)return;
+  paradas.splice(i+1,0,{...paradas[i],pedido:np,done:false});
+  coords.splice(i+1,0,coords[i]); refresh();save();
+}
+function editar(i){
+  const ne=prompt('Novo endereço',paradas[i].endereco); if(ne===null)return;
+  const np=prompt('Novo nº pedido',paradas[i].pedido||''); if(np===null)return;
+  geo(ne).then(c=>{
+    paradas[i]={pedido:np,endereco:ne,coords:c,done:false}; coords[i]=c;
+    refresh();drawAll();save();
+  });
+}
+function excluir(i){paradas.splice(i,1);coords.splice(i,1);refresh();drawAll();save();}
+function navTo(i){openNav(paradas[i].endereco);}
 
-window.adicionar=async()=>{const end=endereco.value.trim();if(!end)return;const ped=pedido.value.trim();const c=await geo(end);paradas.unshift({pedido:ped,endereco:end,coords:c,done:false});coords.unshift(c);endereco.value='';pedido.value='';refresh();drawAll();save();}
-window.duplicar=i=>{const np=prompt('Novo nº pedido',paradas[i].pedido||'');if(np===null)return;paradas.splice(i+1,0,{...paradas[i],pedido:np,done:false});coords.splice(i+1,0,coords[i]);refresh();save();}
-window.editar=async i=>{const ne=prompt('Novo endereço',paradas[i].endereco);if(ne===null)return;const np=prompt('Novo nº pedido',paradas[i].pedido||'');if(np===null)return;const c=await geo(ne);paradas[i]={pedido:np,endereco:ne,coords:c,done:false};coords[i]=c;refresh();drawAll();save();}
-window.excluir=i=>{paradas.splice(i,1);coords.splice(i,1);refresh();drawAll();save();}
-window.navTo=i=>openNav(paradas[i].endereco);
-
+/* ======= UI == */
 function refresh(){
-  const ul=lista;ul.innerHTML='';
+  const ul=document.getElementById('lista'); ul.innerHTML='';
   paradas.forEach((p,i)=>{
-    const li=document.createElement('li');if(p.done)li.classList.add('entregue');
+    const li=document.createElement('li'); if(p.done)li.classList.add('entregue');
     li.innerHTML=`<div class='info'><strong>${p.pedido||'-'}</strong><br>${p.endereco}</div>
       <div>
         <button class='icon-btn' onclick='navTo(${i})'><i class=\"fa-solid fa-turn-up\"></i></button>
         <button class='icon-btn' onclick='duplicar(${i})'><i class='fa-solid fa-clone'></i></button>
         <button class='icon-btn' onclick='editar(${i})'><i class='fa-solid fa-pen'></i></button>
         <button class='icon-btn' onclick='excluir(${i})'><i class='fa-solid fa-trash'></i></button>
-      </div>`;ul.appendChild(li);
+      </div>`;
+    ul.appendChild(li);
   });
   if(sortable)sortable.destroy();
   sortable=new Sortable(ul,{animation:150,onEnd:()=>{
-    const idx=[...ul.children].map(li=>[...ul.children].indexOf(li));
-    paradas=idx.map(j=>paradas[j]);coords=paradas.map(p=>p.coords);refresh();drawAll();save();
+    paradas=[...ul.children].map(li=>paradas[Array.from(li.parentNode.children).indexOf(li)]);
+    coords=paradas.map(p=>p.coords);
+    refresh();drawAll();save();
   }});
 }
 
-window.usarGPS=()=>navigator.geolocation.getCurrentPosition(p=>{startCoords={lat:p.coords.latitude,lng:p.coords.longitude};startLabel='GPS';partida.value='GPS';drawAll();save();});
-const order=c=>{const n=c.length,v=[0];while(v.length<n){const last=v.at(-1);let best=1e9,next=-1;for(let i=0;i<n;i++){if(v.includes(i))continue;const d=Math.hypot(c[last].lat-c[i].lat,c[last].lng-c[i].lng);if(d<best){best=d;next=i;}}v.push(next);}return v;};
-window.otimizar=()=>{if(coords.length<2)return;const o=order(coords);paradas=o.map(i=>paradas[i]);coords=o.map(i=>coords[i]);refresh();drawAll();save();}
-window.inverter=()=>{paradas.reverse();coords.reverse();refresh();drawAll();save();menu.style.display='none';}
+/* ======= Nova rota ======= */
+function novaRota(){
+  paradas=[];coords=[];overlayOn=false;
+  document.getElementById('overlay').style.display='none';
+  refresh();drawAll();save();
+}
 
+/* ======= GPS, otimizar, inverter ======= */
+function usarGPS(){navigator.geolocation.getCurrentPosition(p=>{startCoords={lat:p.coords.latitude,lng:p.coords.longitude};startLabel='GPS';partida.value='GPS';drawAll();save();});}
+const nearest=c=>{const n=c.length,v=[0];while(v.length<n){const last=v.at(-1);let best=1e9,nx=-1;for(let i=0;i<n;i++){if(v.includes(i))continue;const d=Math.hypot(c[last].lat-c[i].lat,c[last].lng-c[i].lng);if(d<best){best=d;nx=i;}}v.push(nx);}return v;};
+function otimizar(){if(coords.length<2)return;const o=nearest(coords);paradas=o.map(i=>paradas[i]);coords=o.map(i=>coords[i]);refresh();drawAll();save();}
+function inverter(){paradas.reverse();coords.reverse();refresh();drawAll();save();menu.style.display='none';}
+
+/* ======= Map ======= */
 function drawAll(){
-  markers.forEach(m=>m.setMap(null));markers=[];
+  markers.forEach(m=>m.setMap(null)); markers=[];
   const b=new google.maps.LatLngBounds();
   if(startCoords){markers.push(new google.maps.Marker({position:startCoords,map,label:'S'}));b.extend(startCoords);}
   coords.forEach((c,i)=>{if(!c)return;markers.push(new google.maps.Marker({position:c,map,label:String(i+1)}));b.extend(c);});
@@ -128,17 +173,27 @@ function drawAll(){
   if(startCoords&&coords.length)svc.route({origin:startCoords,destination:paradas.at(-1).endereco,waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),travelMode:'DRIVING'},(res,s)=>s==='OK'&&rend.setDirections(res));
 }
 
-const openNav=dest=>location.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving&dir_action=navigate`;
-window.iniciar=()=>{if(!paradas.length)return alert('Sem paradas');overlay.style.display='flex';overlayOn=true;save();openNav(paradas[0].endereco);}
-window.status=t=>{paradas[0].done=true;if(t==='nao'){paradas.push(paradas.shift());coords.push(coords.shift());}refresh();drawAll();save();if(paradas.length)openNav(paradas[0].endereco);}
+/* ======= Navegação ======= */
+const openNav=d=>location.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d)}&travelmode=driving&dir_action=navigate`;
+function iniciar(){if(!paradas.length)return alert('Sem paradas');overlay.style.display='flex';overlayOn=true;save();openNav(paradas[0].endereco);}
+function statusEntrega(t){
+  paradas[0].done=true;
+  if(t==='nao'){paradas.push(paradas.shift());coords.push(coords.shift());}
+  refresh();drawAll();save();
+  if(paradas.length)openNav(paradas[0].endereco);
+}
 
-const menu=document.getElementById('menu');btn-menu.onclick=()=>menu.style.display=menu.style.display==='flex'?'none':'flex';
-window.showParadas=()=>{alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||'-'}\n${p.endereco}`).join('\\n\\n'));menu.style.display='none';}
-window.showPedidos=()=>{alert(paradas.slice().reverse().map((p,i)=>`${i+1}. ${p.pedido||'-'}`).join('\\n'));menu.style.display='none';}
+/* ======= Menu & listas ======= */
+const menu=document.getElementById('menu'), btnMenu=document.getElementById('btnMenu');
+btnMenu.onclick=()=>menu.style.display=menu.style.display==='flex'?'none':'flex';
+function showParadas(){alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||'-'}\n${p.endereco}`).join('\\n\\n'));menu.style.display='none';}
+function showPedidos(){alert(paradas.slice().reverse().map((p,i)=>`${i+1}. ${p.pedido||'-'}`).join('\\n'));menu.style.display='none';}
 
+/* ======= Voz ======= */
 if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){
   const SR=SpeechRecognition||webkitSpeechRecognition;const rec=new SR();rec.lang='pt-BR';
-  btn-voz.onclick=()=>rec.start();rec.onresult=e=>endereco.value=e.results[0][0].transcript;
+  const btnVoz=document.getElementById('btnVoz');btnVoz.onclick=()=>rec.start();
+  rec.onresult=e=>endereco.value=e.results[0][0].transcript;
 }
 </script>
 </body>
