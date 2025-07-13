@@ -1,272 +1,193 @@
-<!-- Route 23 – versão compacta com correções 2025‑07‑10 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Route 23</title>
-  <!-- ► Tailwind via CDN para estilos utilitários rápidos -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* --- ajustes do app --- */
-    body {
-      @apply bg-white text-gray-900 select-none;
-    }
-    /* pequena borda nas laterais para facilitar o scroll */
-    #app {
-      @apply px-2;
-    }
-    /* mapa ocupa altura flexível */
-    #map {
-      height: 45vh; /* ajuste conforme desejar */
-      width: 100%;
-    }
-    /* lista de paradas */
-    .stop-item {
-      @apply flex justify-between items-start bg-white rounded-lg shadow p-2 mb-2;
-    }
-    .stop-item.opacity-40 {
-      @apply opacity-40 pointer-events-none;
-    }
-    /* botões de ação – 30% da largura, centralizados */
-    .action-btn {
-      @apply w-[30%] mx-auto py-1 rounded-lg text-white font-semibold;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Route 23 v2.5</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{--verde:#1b5e20;--bg:#fff;--cinza:#f1f1f1}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,system-ui;background:var(--bg);display:flex;flex-direction:column;align-items:center}
+header{padding:4px 0;text-align:center}
+.logo{width:100px}
+h1{margin:4px 0 2px;color:#1b3d2f;font-size:20px}
+#map{width:100%;height:45vh;min-height:300px;border-top:1px solid #ccc}
+#formulario{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px;width:100%;max-width:700px}
+input,button{padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+input{flex:1 1 180px}
+button{background:var(--verde);color:#fff;border:none;cursor:pointer}
+ul{list-style:none;padding:0;margin:10px auto;width:100%;max-width:700px}
+li{background:var(--cinza);margin:6px 0;padding:8px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;cursor:grab}
+.info{text-align:left;max-width:70%;word-break:break-word}
+.icon-btn{background:none;border:none;color:var(--verde);font-size:18px;cursor:pointer;margin-left:6px}
+#overlay-controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;z-index:999}
+#overlay-controls button{min-width:100px;margin:0 4px}
+#menu-overlay{position:fixed;top:70px;right:20px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.25);display:none;flex-direction:column;z-index:998}
+#menu-overlay button{background:none;color:#333;border:none;padding:10px 16px;font-size:14px;text-align:left;width:200px;border-bottom:1px solid #eee}
+#menu-overlay button:last-child{border-bottom:none}
+#menu-overlay button:hover{background:var(--cinza)}
+/* splash */
+#splash{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);z-index:1000;animation:fadeOut 1.5s forwards 1.2s}
+@keyframes fadeOut{to{opacity:0;visibility:hidden}}
+</style>
 </head>
 <body>
-  <div id="app" class="max-w-lg mx-auto">
-    <!-- Mapa -->
-    <div id="map" class="rounded-lg shadow mb-4"></div>
+<div id="splash"><img src="logo.png" class="logo" alt="Logo"><h2>Route 23</h2></div>
 
-    <!-- Formulário para adicionar parada -->
-    <form id="addForm" class="space-y-2 mb-4">
-      <input id="address" class="w-full input input-bordered" placeholder="Endereço" required />
-      <input id="order" class="w-full input input-bordered" placeholder="Nº do pedido (opcional)" />
-      <input id="start" class="w-full input input-bordered" placeholder="Ponto de partida (opcional)" />
-      <div class="flex gap-2">
-        <button class="action-btn bg-emerald-700">Adicionar</button>
-        <button type="button" id="optimizeBtn" class="action-btn bg-emerald-700">Otimizar rota</button>
-        <button type="button" id="startRouteBtn" class="action-btn bg-emerald-700">Iniciar rota</button>
-      </div>
-    </form>
+<header>
+  <img src="logo.png" class="logo" alt="Logo Route 23" />
+  <h1>Route 23</h1>
+</header>
 
-    <!-- Lista de paradas -->
-    <ul id="stopList"></ul>
-  </div>
+<div id="map"></div>
 
-  <!-- Google Maps – substitua SUA_API_KEY abaixo -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places"></script>
-  <script>
-  /* =============================================================
-     Route 23 – script principal
-     ============================================================= */
-  let map, geocoder, directionsService, directionsRenderer;
-  let stops = [];           // {id, address, order, start, status, latLng}
-  let routeStarted = false; // para exibir Entregue / Não entregue
+<!-- formulário -->
+<div id="formulario">
+  <input id="endereco" placeholder="Endereço"/>
+  <button id="btn-voz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button>
 
-  /*** Utilidades ***********************************************************/
-  const qs = sel => document.querySelector(sel);
-  const $$ = sel => Array.from(document.querySelectorAll(sel));
-  const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2,5);
+  <input id="pedido" placeholder="Nº do Pedido (opcional)"/>
 
-  function saveStops() {
-    localStorage.setItem('stops', JSON.stringify(stops));
-  }
-  function loadStops() {
-    stops = JSON.parse(localStorage.getItem('stops') || '[]');
-  }
+  <button id="btn-menu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
 
-  /*** Mapa *****************************************************************/
-  function initMap() {
-    map = new google.maps.Map(document.getElementById('map'), {
-      center: { lat: -29.6, lng: -51.15 }, // Ivoti‑RS como padrão
-      zoom: 13,
-      mapTypeControl: false,
-    });
-    geocoder = new google.maps.Geocoder();
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({ map });
-  }
+  <input id="partida" placeholder="Ponto de Partida (opcional)"/>
+  <button onclick="usarGPS()" title="GPS"><i class="fa-solid fa-location-crosshairs"></i></button>
 
-  async function geocodeAddress(address) {
-    return new Promise((resolve, reject) => {
-      geocoder.geocode({ address }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          resolve(results[0].geometry.location);
-        } else {
-          reject(status);
-        }
-      });
-    });
-  }
+  <button onclick="adicionar()"><i class="fa-solid fa-plus"></i></button>
+  <button onclick="otimizarRota()">Otimizar</button>
+</div>
 
-  async function drawMarkers() {
-    // remove rota, desenha marcadores simples numerados
-    directionsRenderer.set('directions', null);
-    map.overlayMapTypes.clear?.();
-    // limpar marcadores existentes
-    $$('[data-marker]').forEach(el => el.setMap(null));
+<ul id="lista"></ul>
 
-    const bounds = new google.maps.LatLngBounds();
-    stops.forEach((s, idx) => {
-      if (!s.latLng) return;
-      const marker = new google.maps.Marker({
-        position: s.latLng,
-        map,
-        label: (idx + 1).toString(),
-      });
-      marker.__id = s.id;
-      marker.set("data-marker", true);
-      bounds.extend(s.latLng);
-    });
-    map.fitBounds(bounds);
-  }
+<button id="btn-iniciar" onclick="iniciarRota()"
+  style="margin-bottom:15px;background:var(--verde);color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:16px">
+  Iniciar Rota
+</button>
 
-  /*** Renderização da lista ***********************************************/
-  function renderStopList() {
-    const ul = qs('#stopList');
-    ul.innerHTML = stops.map(s => {
-      const deliveredClass = s.status ? 'opacity-40' : '';
-      return `
-      <li class="stop-item ${deliveredClass}" data-id="${s.id}">
-        <div>
-          <p class="font-medium">${s.address}</p>
-          ${s.order ? `<p class="text-sm text-gray-500">Pedido #${s.order}</p>` : ''}
-        </div>
-        <div class="flex flex-col gap-1 ml-2">
-          <button class="btn-nav" data-id="${s.id}">⬆️</button>
-          <button class="btn-edit" data-id="${s.id}">✏️</button>
-          <button class="btn-dup" data-id="${s.id}">📄</button>
-          <button class="btn-delete" data-id="${s.id}">🗑️</button>
-          ${routeStarted ? `
-            <button class="btn-delivered" data-id="${s.id}">✅</button>
-            <button class="btn-undelivered" data-id="${s.id}">❌</button>` : ''}
-        </div>
-      </li>`;
-    }).join('');
-  }
+<div id="overlay-controls">
+  <button onclick="statusEntrega('entregue')">Entregue</button>
+  <button onclick="statusEntrega('nao')">Não Entregue</button>
+</div>
 
-  /***** Ações nos botões ***************************************************/
-  function bindListDelegation() {
-    qs('#stopList').addEventListener('click', async (e) => {
-      const id = e.target.dataset.id;
-      if (!id) return;
-      if (e.target.matches('.btn-delete')) deleteStop(id);
-      else if (e.target.matches('.btn-edit')) editStop(id);
-      else if (e.target.matches('.btn-dup')) duplicateStop(id);
-      else if (e.target.matches('.btn-nav')) navigateToStop(id);
-      else if (e.target.matches('.btn-delivered')) markStop(id, 'delivered');
-      else if (e.target.matches('.btn-undelivered')) markStop(id, 'undelivered');
-    });
-  }
+<div id="menu-overlay">
+  <button onclick="inverterRota()"><i class="fa-solid fa-arrows-up-down"></i> Inverter rota</button>
+  <button onclick="mostrarParadas()"><i class="fa-solid fa-list"></i> Lista de paradas</button>
+  <button onclick="mostrarPedidos()"><i class="fa-solid fa-box"></i> Lista de pedidos</button>
+</div>
 
-  function deleteStop(id) {
-    stops = stops.filter(s => s.id !== id);
-    saveStops();
-    renderStopList();
-    drawMarkers();
-  }
-  function duplicateStop(id) {
-    const src = stops.find(s => s.id === id);
-    const copy = { ...src, id: uid() };
-    stops.push(copy);
-    saveStops();
-    renderStopList();
-    drawMarkers();
-  }
-  function editStop(id) {
-    const s = stops.find(st => st.id === id);
-    const newAddr = prompt('Editar endereço', s.address);
-    if (newAddr) {
-      s.address = newAddr;
-      s.latLng = null; // forçar nova geocodificação
-      saveStops();
-      renderStopList();
-      geocodeAndUpdate(s);
-    }
-  }
-  function navigateToStop(id) {
-    const s = stops.find(st => st.id === id);
-    if (!s) return;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(s.address)}&travelmode=driving`;
-    window.open(url, '_blank');
-  }
-  function markStop(id, status) {
-    const s = stops.find(st => st.id === id);
-    if (!s) return;
-    s.status = status;
-    saveStops();
-    renderStopList();
-  }
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>
+<script>
+/* ======== VARS ======== */
+let map, dirSvc, dirRend, acEnd, acStart, sortable;
+let paradas=[], coords=[], markers=[];
+let startLabel=null, startCoords=null;
+const LS='r23_paradas', LS_START='r23_start';
 
-  /***** Formulário de adição **********************************************/
-  async function geocodeAndUpdate(stop) {
-    try {
-      stop.latLng = await geocodeAddress(stop.address);
-      saveStops();
-      drawMarkers();
-    } catch(err) {
-      alert('Não foi possível localizar o endereço: ' + err);
-    }
-  }
+/* ======== INIT MAP ======== */
+function initMap(){
+  map=new google.maps.Map(document.getElementById('map'),{center:{lat:-14.235,lng:-51.9253},zoom:4});
+  dirSvc=new google.maps.DirectionsService();
+  dirRend=new google.maps.DirectionsRenderer({suppressMarkers:true});
+  dirRend.setMap(map);
 
-  function handleAdd(e) {
-    e.preventDefault();
-    const address = qs('#address').value.trim();
-    if (!address) return;
-    const order = qs('#order').value.trim();
-    const start = qs('#start').value.trim();
+  acEnd   =new google.maps.places.Autocomplete(document.getElementById('endereco'),{componentRestrictions:{country:'br'}});
+  acStart =new google.maps.places.Autocomplete(document.getElementById('partida'), {componentRestrictions:{country:'br'}});
+  loadLS();
+}
 
-    const stop = { id: uid(), address, order, start, status: null, latLng: null };
-    stops.push(stop);
-    saveStops();
-    renderStopList();
-    geocodeAndUpdate(stop);
+/* ======== STORAGE ======== */
+function saveLS(){localStorage.setItem(LS,JSON.stringify(paradas));localStorage.setItem(LS_START,JSON.stringify({startLabel,startCoords}));}
+function loadLS(){
+  paradas=JSON.parse(localStorage.getItem(LS)||'[]');
+  coords =paradas.map(p=>p.coords);
+  const s=JSON.parse(localStorage.getItem(LS_START)||'null');
+  if(s){startLabel=s.startLabel;startCoords=s.startCoords;document.getElementById('partida').value=startLabel||'';}
+  refreshList(); drawPins(); drawRoute();
+}
 
-    e.target.reset();
-  }
+/* ======== UTIL ======== */
+const geocode=a=>new Promise(r=>new google.maps.Geocoder().geocode({address:a},(res,s)=>{if(s==='OK'){const l=res[0].geometry.location;r({lat:l.lat(),lng:l.lng()});}else r(null);} ));
+const nearest=o=>{const n=o.length,v=[0];while(v.length<n){const last=v.at(-1);let best=1e9,next=-1;for(let i=0;i<n;i++){if(v.includes(i))continue;const d=Math.hypot(o[last].lat-o[i].lat,o[last].lng-o[i].lng);if(d<best){best=d;next=i;}}v.push(next);}return v;};
 
-  /***** Otimizar rota ******************************************************/
-  async function optimizeRoute() {
-    if (stops.length < 2) return alert('Adicione pelo menos 2 paradas.');
+/* ======== LIST CRUD ======== */
+async function adicionar(){
+  const end=document.getElementById('endereco').value.trim(); if(!end)return;
+  const ped=document.getElementById('pedido').value.trim();
+  const c=await geocode(end);
+  paradas.unshift({pedido:ped,endereco:end,coords:c});
+  coords.unshift(c);
+  document.getElementById('endereco').value='';document.getElementById('pedido').value='';
+  refreshList();drawPins();drawRoute();saveLS();
+}
+function duplicar(i){
+  const novoPed=prompt('Novo nº pedido?',paradas[i].pedido||''); if(novoPed===null)return;
+  paradas.splice(i+1,0,{...paradas[i],pedido:novoPed});
+  coords .splice(i+1,0,coords[i]);
+  refreshList();saveLS();
+}
+async function editar(i){
+  const nEnd=prompt('Novo endereço',paradas[i].endereco); if(nEnd===null)return;
+  const nPed=prompt('Novo nº pedido (opcional)',paradas[i].pedido||''); if(nPed===null)return;
+  const c=await geocode(nEnd);
+  paradas[i]={pedido:nPed,endereco:nEnd,coords:c}; coords[i]=c;
+  refreshList();drawPins();drawRoute();saveLS();
+}
+function excluir(i){paradas.splice(i,1);coords.splice(i,1);refreshList();drawPins();drawRoute();saveLS();}
 
-    // pontos origem e destino – se houver "start" marcado, usa; senão, primeira parada
-    const origin = stops[0].address;
-    const destination = stops[stops.length - 1].address;
-    const waypoints = stops.slice(1, -1).map(s => ({ location: s.address, stopover: true }));
-
-    directionsService.route({
-      origin, destination, waypoints, travelMode: 'DRIVING', optimizeWaypoints: true
-    }, (result, status) => {
-      if (status === 'OK') {
-        directionsRenderer.setDirections(result);
-      } else {
-        alert('Erro ao otimizar rota: ' + status);
-      }
-    });
-  }
-
-  /***** Iniciar rota ******************************************************/
-  function startRoute() {
-    if (stops.length === 0) return alert('Nenhuma parada adicionada.');
-    routeStarted = true;
-    renderStopList();
-    navigateToStop(stops[0].id);
-  }
-
-  /***** Inicialização ******************************************************/
-  document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    loadStops();
-    renderStopList();
-    drawMarkers();
-
-    bindListDelegation();
-    qs('#addForm').addEventListener('submit', handleAdd);
-    qs('#optimizeBtn').addEventListener('click', optimizeRoute);
-    qs('#startRouteBtn').addEventListener('click', startRoute);
+function refreshList(){
+  const ul=document.getElementById('lista'); ul.innerHTML='';
+  paradas.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<div class="info"><strong>${p.pedido||'-'}</strong><br>${p.endereco}</div>
+      <div>
+        <button class="icon-btn" onclick="duplicar(${i})"><i class="fa-solid fa-clone"></i></button>
+        <button class="icon-btn" onclick="editar(${i})"><i class="fa-solid fa-pen"></i></button>
+        <button class="icon-btn" onclick="excluir(${i})"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+    ul.appendChild(li);
   });
-  </script>
+  if(!sortable)sortable=new Sortable(ul,{animation:150,onEnd:()=>{
+    const itens=[...ul.children]; paradas=itens.map(li=>paradas[[...itens].indexOf(li)]); coords=paradas.map(p=>p.coords);
+    drawPins(); drawRoute(); saveLS();
+  }});
+}
+
+/* ======== START POINT ======== */
+function usarGPS(){if(!navigator.geolocation)return alert('Sem GPS');navigator.geolocation.getCurrentPosition(pos=>{startCoords={lat:pos.coords.latitude,lng:pos.coords.longitude};startLabel='GPS';document.getElementById('partida').value='GPS';drawPins();drawRoute();saveLS();});}
+
+/* ======== OPTIMIZE & INVERT ======== */
+function otimizarRota(){if(coords.length<2)return;const ord=nearest(coords);paradas=ord.map(i=>paradas[i]);coords=ord.map(i=>coords[i]);refreshList();drawPins();drawRoute();saveLS();}
+function inverterRota(){paradas.reverse();coords.reverse();refreshList();drawPins();drawRoute();saveLS();menu.style.display='none';}
+
+/* ======== MAP ======== */
+function drawPins(){
+  markers.forEach(m=>m.setMap(null));markers=[];
+  const b=new google.maps.LatLngBounds();
+  if(startCoords){markers.push(new google.maps.Marker({position:startCoords,map,label:'S'}));b.extend(startCoords);}
+  coords.forEach((c,i)=>{if(!c)return;markers.push(new google.maps.Marker({position:c,map,label:String(i+1)}));b.extend(c);});
+  if(!b.isEmpty())map.fitBounds(b);
+}
+function drawRoute(){if(!startCoords||coords.length<1)return;dirSvc.route({origin:startCoords,destination:paradas.at(-1).endereco,waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),travelMode:'DRIVING'},(res,s)=>{if(s==='OK')dirRend.setDirections(res);});}
+
+/* ======== NAVIGATION ======== */
+function iniciarRota(){if(paradas.length===0)return alert('Sem paradas');document.getElementById('overlay-controls').style.display='block';openNav(paradas[0].endereco);}
+function statusEntrega(t){if(t==='entregue'){paradas.shift();coords.shift();}else{paradas.push(paradas.shift());coords.push(coords.shift());}if(paradas.length===0){document.getElementById('overlay-controls').style.display='none';saveLS();return;}drawPins();drawRoute();openNav(paradas[0].endereco);refreshList();saveLS();}
+const openNav=dest=>window.location.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving&dir_action=navigate`;
+
+/* ======== MENU ======== */
+const menu=document.getElementById('menu-overlay');document.getElementById('btn-menu').onclick=()=>menu.style.display=menu.style.display==='flex'?'none':'flex';
+function mostrarParadas(){alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||'-'}\n${p.endereco}`).join('\n\n'));menu.style.display='none';}
+function mostrarPedidos(){alert(paradas.slice().reverse().map(p=>p.pedido||'-').join('\n'));menu.style.display='none';}
+
+/* ======== VOZ ======== */
+if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new SR(); rec.lang='pt-BR';
+  document.getElementById('btn-voz').onclick=()=>rec.start();
+  rec.onresult=e=>{document.getElementById('endereco').value=e.results[0][0].transcript};
+}
+</script>
 </body>
 </html>
