@@ -81,6 +81,15 @@ function initMap(){
   acStart=new google.maps.places.Autocomplete(document.getElementById('partida'),{componentRestrictions:{country:'br'}});
   splash.style.display='none';
   load();
+  <script>
+function initMap(){
+  // ...código de inicialização...
+  setTimeout(()=>{            // <-- adiciona isto
+    document.getElementById('splash').style.display='none';
+  }, 1000);                   // 1 segundo de exibição
+  load();
+}
+</script>
 }
 
 /* ===== helpers ===== */
