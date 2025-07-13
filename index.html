@@ -1,4 +1,6 @@
-<!-- Route 23 – versão compacta com correções 2025‑07‑10 --><!DOCTYPE html><html lang="pt-BR">
+<!-- Route 23 – versão compacta com correções 2025‑07‑10 -->
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -35,22 +37,27 @@
 <body>
   <div id="app" class="max-w-lg mx-auto">
     <!-- Mapa -->
-    <div id="map" class="rounded-lg shadow mb-4"></div><!-- Formulário para adicionar parada -->
-<form id="addForm" class="space-y-2 mb-4">
-  <input id="address" class="w-full input input-bordered" placeholder="Endereço" required />
-  <input id="order" class="w-full input input-bordered" placeholder="Nº do pedido (opcional)" />
-  <input id="start" class="w-full input input-bordered" placeholder="Ponto de partida (opcional)" />
-  <div class="flex gap-2">
-    <button class="action-btn bg-emerald-700">Adicionar</button>
-    <button type="button" id="optimizeBtn" class="action-btn bg-emerald-700">Otimizar rota</button>
-    <button type="button" id="startRouteBtn" class="action-btn bg-emerald-700">Iniciar rota</button>
+    <div id="map" class="rounded-lg shadow mb-4"></div>
+
+    <!-- Formulário para adicionar parada -->
+    <form id="addForm" class="space-y-2 mb-4">
+      <input id="address" class="w-full input input-bordered" placeholder="Endereço" required />
+      <input id="order" class="w-full input input-bordered" placeholder="Nº do pedido (opcional)" />
+      <input id="start" class="w-full input input-bordered" placeholder="Ponto de partida (opcional)" />
+      <div class="flex gap-2">
+        <button class="action-btn bg-emerald-700">Adicionar</button>
+        <button type="button" id="optimizeBtn" class="action-btn bg-emerald-700">Otimizar rota</button>
+        <button type="button" id="startRouteBtn" class="action-btn bg-emerald-700">Iniciar rota</button>
+      </div>
+    </form>
+
+    <!-- Lista de paradas -->
+    <ul id="stopList"></ul>
   </div>
-</form>
 
-<!-- Lista de paradas -->
-<ul id="stopList"></ul>
-
-  </div>  <!-- Google Maps – substitua SUA_API_KEY abaixo -->  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places"></script>  <script>
+  <!-- Google Maps – substitua SUA_API_KEY abaixo -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places"></script>
+  <script>
   /* =============================================================
      Route 23 – script principal
      ============================================================= */
@@ -260,5 +267,6 @@
     qs('#optimizeBtn').addEventListener('click', optimizeRoute);
     qs('#startRouteBtn').addEventListener('click', startRoute);
   });
-  </script></body>
+  </script>
+</body>
 </html>
