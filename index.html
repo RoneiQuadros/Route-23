@@ -1,564 +1,156 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!DOCTYPE html><html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Route 23 v2.9.2</title>
-
-  <!-- Ícones -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-  />
-
+  <title>Route 23 v2.9.3</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    :root {
-      --verde: #1b5e20;
-      --bg: #fff;
-      --cinza: #f1f1f1;
-      --bordas: 12px;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: Arial, system-ui;
-      background: var(--bg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 var(--bordas);
-    }
+    :root { --verde:#1b5e20; --bg:#fff; --cinza:#f1f1f1; --bordas:12px; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Arial,system-ui; background:var(--bg); display:flex; flex-direction:column; align-items:center; padding:0 var(--bordas); }/* mapa */
+#map { width:100%; height:45vh; min-height:300px; border:1px solid #ccc; border-radius:8px; margin-top:6px; }
 
-    /* mapa */
-    #map {
-      width: 100%;
-      height: 45vh;
-      min-height: 300px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-top: 6px;
-    }
+/* formulário */
+#formulario { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; padding:10px 0; width:100%; max-width:700px; }
+input,button { padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
+input { flex:1 1 180px; }
+button { background:var(--verde); color:#fff; border:none; cursor:pointer; }
 
-    /* formulário */
-    #formulario {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-      padding: 10px 0;
-      width: 100%;
-      max-width: 700px;
-    }
-    input,
-    button {
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    input {
-      flex: 1 1 180px;
-    }
-    button {
-      background: var(--verde);
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
+/* lista */
+ul { list-style:none; padding:0; margin:10px auto; width:100%; max-width:700px; }
+li { background:var(--cinza); margin:6px 0; padding:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; transition:opacity .3s; }
+li.entregue { opacity:.4; }
+.drag-handle { cursor:grab; user-select:none; max-width:70%; }
+.icon-btn { background:none; border:none; color:var(--verde); font-size:18px; cursor:pointer; margin-left:6px; }
 
-    /* lista */
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 10px auto;
-      width: 100%;
-      max-width: 700px;
-    }
-    li {
-      background: var(--cinza);
-      margin: 6px 0;
-      padding: 8px;
-      border-radius: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: opacity 0.3s;
-    }
-    li.entregue {
-      opacity: 0.4;
-    }
-    .drag-handle {
-      cursor: grab;
-      user-select: none;
-      max-width: 70%;
-    }
-    .icon-btn {
-      background: none;
-      border: none;
-      color: var(--verde);
-      font-size: 18px;
-      cursor: pointer;
-      margin-left: 6px;
-    }
+/* overlay */
+#overlay { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.25); display:none; gap:8px; z-index:999; }
 
-    /* overlay Entregue / Não entregue */
-    #overlay {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      padding: 8px 12px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-      display: none;
-      gap: 8px;
-      z-index: 999;
-    }
+/* menu */
+#menu { position:fixed; top:70px; right:20px; background:#fff; border:1px solid #ccc; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.25); display:none; flex-direction:column; z-index:998; }
+#menu button { background:none; color:#333; border:none; padding:10px 16px; font-size:14px; text-align:left; width:200px; border-bottom:1px solid #eee; }
+#menu button:last-child { border-bottom:none; }
+#menu button:hover { background:var(--cinza); }
 
-    /* menu flutuante */
-    #menu {
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-      display: none;
-      flex-direction: column;
-      z-index: 998;
-    }
-    #menu button {
-      background: none;
-      color: #333;
-      border: none;
-      padding: 10px 16px;
-      font-size: 14px;
-      text-align: left;
-      width: 200px;
-      border-bottom: 1px solid #eee;
-    }
-    #menu button:last-child {
-      border-bottom: none;
-    }
-    #menu button:hover {
-      background: var(--cinza);
-    }
+/* splash */
+#splash { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; background:#fff; z-index:1000; animation:fadeOut .6s forwards 1s; }
+@keyframes fadeOut { to{ opacity:0; visibility:hidden; } }
 
-    /* splash */
-    #splash {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #fff;
-      z-index: 1000;
-      animation: fadeOut 0.6s forwards 1s;
-    }
-    @keyframes fadeOut {
-      to {
-        opacity: 0;
-        visibility: hidden;
-      }
-    }
   </style>
 </head>
-
 <body>
-  <!-- splash -->
-  <div id="splash">
-    <img src="logo.png" alt="logo" style="width: 120px" />
-  </div>
-
-  <!-- mapa -->
-  <div id="map"></div>
-
-  <!-- botões topo -->
-  <div style="display: flex; gap: 8px; margin: 8px 0">
-    <button id="btnNova" style="background: #d32f2f">
-      <i class="fa-solid fa-broom"></i> Nova rota
-    </button>
-    <button id="btnIniciar">
-      <i class="fa-solid fa-play"></i> Iniciar rota
-    </button>
-  </div>
-
-  <!-- formulário -->
-  <div id="formulario">
+  <!-- Splash -->
+  <div id="splash"><img src="logo.png" alt="logo" style="width:120px"/></div>  <!-- Mapa -->  <div id="map"></div>  <!-- Barra topo: Nova rota + Otimizar -->  <div style="display:flex; gap:8px; margin:8px 0;">
+    <button id="btnNova" style="background:#d32f2f"><i class="fa-solid fa-broom"></i> Nova rota</button>
+    <button id="btnOtTopo"><i class="fa-solid fa-sort"></i> Otimizar</button>
+  </div>  <!-- Formulário de entrada -->  <div id="formulario">
     <input id="endereco" placeholder="Endereço" />
-    <button id="btnVoz" title="Falar endereço">
-      <i class="fa-solid fa-microphone"></i>
-    </button>
+    <button id="btnVoz" title="Falar endereço"><i class="fa-solid fa-microphone"></i></button><input id="pedido" placeholder="Nº do Pedido (opcional)" />
+<button id="btnMenu" title="Mais opções"><i class="fa-solid fa-bars"></i></button>
 
-    <input id="pedido" placeholder="Nº do Pedido (opcional)" />
-    <button id="btnMenu" title="Mais opções">
-      <i class="fa-solid fa-bars"></i>
-    </button>
+<input id="partida" placeholder="Ponto de Partida (opcional)" />
+<button id="btnGPS" title="GPS"><i class="fa-solid fa-location-crosshairs"></i></button>
 
-    <input id="partida" placeholder="Ponto de Partida (opcional)" />
-    <button id="btnGPS" title="GPS">
-      <i class="fa-solid fa-location-crosshairs"></i>
-    </button>
+<button id="btnAdd"><i class="fa-solid fa-plus"></i></button>
 
-    <button id="btnAdd"><i class="fa-solid fa-plus"></i></button>
-    <button id="btnOt"><i class="fa-solid fa-sort"></i></button>
-  </div>
+  </div>  <!-- Lista -->  <ul id="lista"></ul>  <!-- Botão Iniciar rota no final da lista --><button id="btnIniciar" style="margin-bottom:20px"><i class="fa-solid fa-play"></i> Iniciar rota</button>
 
-  <!-- lista render -->
-  <ul id="lista"></ul>
-
-  <!-- overlay entrega -->
-  <div id="overlay">
+  <!-- Overlay Entregue / Não entregue -->  <div id="overlay">
     <button data-action="entregue">Entregue</button>
     <button data-action="nao">Não Entregue</button>
-  </div>
+  </div>  <!-- Menu flutuante -->  <div id="menu">
+    <button id="btnInv"><i class="fa-solid fa-arrows-up-down"></i> Inverter rota</button>
+    <button id="btnParadas"><i class="fa-solid fa-list"></i> Lista de paradas</button>
+    <button id="btnPedidos"><i class="fa-solid fa-box"></i> Lista de pedidos</button>
+  </div>  <!-- libs -->  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap" async defer></script>  <script>
+    /* ========== VARS ========== */
+    let map,svc,rend,acEnd,acStart,sortable;
+    let paradas=[],coords=[],markers=[];
+    let startC=null,startLabel=null,overlayOn=false;
+    const LS='r23_paradas',LS_S='r23_start',LS_OV='r23_overlay';
 
-  <!-- menu -->
-  <div id="menu">
-    <button id="btnInv">
-      <i class="fa-solid fa-arrows-up-down"></i> Inverter rota
-    </button>
-    <button id="btnParadas">
-      <i class="fa-solid fa-list"></i> Lista de paradas
-    </button>
-    <button id="btnPedidos">
-      <i class="fa-solid fa-box"></i> Lista de pedidos
-    </button>
-  </div>
+    /* ========== helpers storage ========== */
+    const save=()=>{localStorage.setItem(LS,JSON.stringify(paradas));localStorage.setItem(LS_S,JSON.stringify({startLabel,startC}));localStorage.setItem(LS_OV,overlayOn?'1':'0');}
+    function load(){paradas=JSON.parse(localStorage.getItem(LS)||'[]');coords=paradas.map(p=>p.coords);const st=JSON.parse(localStorage.getItem(LS_S)||'null');if(st){startLabel=st.startLabel;startC=st.startC;partida.value=startLabel||'';}overlayOn=localStorage.getItem(LS_OV)==='1';overlay.style.display=overlayOn?'flex':'none';refresh();drawAll();}
 
-  <!-- libs -->
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAmFD7MbQv11iUe0YmuKdpRcrwgqCeufvY&libraries=places&callback=initMap"
-    async
-    defer
-  ></script>
+    const geo=addr=>new Promise(res=>new google.maps.Geocoder().geocode({address:addr},(r,s)=>res(s==='OK'?{lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()}:null)));
 
-  <!-- app -->
-  <script>
-    /********* VARS *********/
-    let map,
-      svc,
-      rend,
-      acEnd,
-      acStart,
-      sortable,
-      paradas = [],
-      coords = [],
-      markers = [];
-    let startC = null,
-      startLabel = null,
-      overlayOn = false;
-
-    const LS = "r23_paradas",
-      LS_S = "r23_start",
-      LS_OV = "r23_overlay";
-
-    /********* STORAGE *********/
-    const save = () => {
-      localStorage.setItem(LS, JSON.stringify(paradas));
-      localStorage.setItem(LS_S, JSON.stringify({ startLabel, startC }));
-      localStorage.setItem(LS_OV, overlayOn ? "1" : "0");
-    };
-    function load() {
-      paradas = JSON.parse(localStorage.getItem(LS) || "[]");
-      coords = paradas.map((p) => p.coords);
-      const st = JSON.parse(localStorage.getItem(LS_S) || "null");
-      if (st) {
-        startLabel = st.startLabel;
-        startC = st.startC;
-        partida.value = startLabel || "";
-      }
-      overlayOn = localStorage.getItem(LS_OV) === "1";
-      overlay.style.display = overlayOn ? "flex" : "none";
-      refresh();
-      drawAll();
-    }
-
-    /********* GOOGLE MAPS INIT *********/
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -14.2, lng: -51.9 },
-        zoom: 4,
-      });
-      svc = new google.maps.DirectionsService();
-      rend = new google.maps.DirectionsRenderer({ suppressMarkers: true });
-      rend.setMap(map);
-
-      acEnd = new google.maps.places.Autocomplete(endereco, {
-        componentRestrictions: { country: "br" },
-      });
-      acStart = new google.maps.places.Autocomplete(partida, {
-        componentRestrictions: { country: "br" },
-      });
-
+    /* ========== initMap ========== */
+    function initMap(){
+      map=new google.maps.Map(document.getElementById('map'),{center:{lat:-14.2,lng:-51.9},zoom:4});
+      svc=new google.maps.DirectionsService();
+      rend=new google.maps.DirectionsRenderer({suppressMarkers:true});rend.setMap(map);
+      acEnd=new google.maps.places.Autocomplete(endereco,{componentRestrictions:{country:'br'}});
+      acStart=new google.maps.places.Autocomplete(partida,{componentRestrictions:{country:'br'}});
       load();
     }
 
-    /********* GEO helper *********/
-    const geo = (addr) =>
-      new Promise((res) =>
-        new google.maps.Geocoder().geocode({ address: addr }, (r, s) =>
-          res(
-            s === "OK"
-              ? {
-                  lat: r[0].geometry.location.lat(),
-                  lng: r[0].geometry.location.lng(),
-                }
-              : null
-          )
-        )
-      );
-
-    /********* RENDER LISTA *********/
-    function refresh() {
-      lista.innerHTML = "";
-      paradas.forEach((p, i) => {
-        const li = document.createElement("li");
-        li.dataset.i = i;
-        if (p.done) li.className = "entregue";
-        li.innerHTML = `
-          <div class="drag-handle info">
-            <strong>${p.pedido || "-"}</strong><br>${p.endereco}
-          </div>
+    /* ========== render lista ========== */
+    function refresh(){
+      lista.innerHTML='';
+      paradas.forEach((p,i)=>{
+        const li=document.createElement('li');li.dataset.i=i;if(p.done)li.className='entregue';
+        li.innerHTML=`<div class='drag-handle info'><strong>${p.pedido||'-'}</strong><br>${p.endereco}</div>
           <div>
-            <button class="icon-btn" data-act="nav"  data-i="${i}"><i class="fa-solid fa-turn-up"></i></button>
-            <button class="icon-btn" data-act="dup"  data-i="${i}"><i class="fa-solid fa-clone"></i></button>
-            <button class="icon-btn" data-act="edit" data-i="${i}"><i class="fa-solid fa-pen"></i></button>
-            <button class="icon-btn" data-act="del"  data-i="${i}"><i class="fa-solid fa-trash"></i></button>
+            <button class='icon-btn' data-act='nav' data-i='${i}'><i class="fa-solid fa-turn-up"></i></button>
+            <button class='icon-btn' data-act='dup' data-i='${i}'><i class='fa-solid fa-clone'></i></button>
+            <button class='icon-btn' data-act='edit' data-i='${i}'><i class='fa-solid fa-pen'></i></button>
+            <button class='icon-btn' data-act='del' data-i='${i}'><i class='fa-solid fa-trash'></i></button>
           </div>`;
         lista.appendChild(li);
       });
-
-      if (sortable) sortable.destroy();
-      sortable = new Sortable(lista, {
-        animation: 150,
-        handle: ".drag-handle",
-        onEnd: () => {
-          const order = [...lista.children].map((el) => +el.dataset.i);
-          paradas = order.map((i) => paradas[i]);
-          coords = paradas.map((p) => p.coords);
-          refresh();
-          drawAll();
-          save();
-        },
-      });
+      if(sortable)sortable.destroy();
+      sortable=new Sortable(lista,{animation:150,handle:'.drag-handle',onEnd:()=>{
+        const order=[...lista.children].map(el=>+el.dataset.i);
+        paradas=order.map(i=>paradas[i]);coords=paradas.map(p=>p.coords);
+        refresh();drawAll();save();
+      }});
     }
 
-    /********* EVENTOS LISTA *********/
-    lista.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act]");
-      if (!btn) return;
-      const i = +btn.dataset.i;
-      const act = btn.dataset.act;
-      if (act === "nav") openNav(paradas[i].endereco);
-      if (act === "dup") duplicar(i);
-      if (act === "edit") editar(i);
-      if (act === "del") excluir(i);
+    /* events list */
+    lista.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-act]');if(!btn)return;
+      const i=+btn.dataset.i,act=btn.dataset.act;
+      if(act==='nav') openNav(paradas[i].endereco);
+      if(act==='dup') duplicar(i);
+      if(act==='edit') editar(i);
+      if(act==='del') excluir(i);
     });
 
-    /********* OVERLAY *********/
-    overlay.addEventListener("click", (e) => {
-      if (e.target.tagName !== "BUTTON") return;
-      statusEntrega(e.target.dataset.action || "entregue");
-    });
+    overlay.addEventListener('click',e=>{if(e.target.tagName!=='BUTTON')return;statusEntrega(e.target.dataset.action||'entregue');});
 
-    /********* BOTÕES FIXOS *********/
-    btnAdd.onclick = adicionar;
-    btnOt.onclick = otimizar;
-    btnGPS.onclick = usarGPS;
-    btnNova.onclick = novaRota;
-    btnIniciar.onclick = iniciar;
-    btnMenu.onclick = () =>
-      (menu.style.display = menu.style.display === "flex" ? "none" : "flex");
-    btnInv.onclick = inverter;
-    btnParadas.onclick = () => {
-      alert(
-        paradas
-          .map((p, i) => `${i + 1}. ${p.pedido || "-"}\n${p.endereco}`)
-          .join("\n\n")
-      );
-      menu.style.display = "none";
-    };
-    btnPedidos.onclick = () => {
-      alert(
-        paradas
-          .slice()
-          .reverse()
-          .map((p, i) => `${i + 1}. ${p.pedido || "-"}`)
-          .join("\n")
-      );
-      menu.style.display = "none";
-    };
+    /* ========== botões ========== */
+    btnAdd     .onclick=adicionar;
+    btnGPS     .onclick=usarGPS;
+    btnNova    .onclick=novaRota;
+    btnIniciar .onclick=iniciar;
+    btnMenu    .onclick=()=>menu.style.display=menu.style.display==='flex'?'none':'flex';
+    btnInv     .onclick=inverter;
+    btnOtTopo  .onclick=otimizar;
+    btnParadas .onclick=()=>{alert(paradas.map((p,i)=>`${i+1}. ${p.pedido||'-'}\n${p.endereco}`).join('\n\n'));menu.style.display='none';};
+    btnPedidos .onclick=()=>{alert(paradas.slice().reverse().map((p,i)=>`${i+1}. ${p.pedido||'-'}`).join('\n'));menu.style.display='none';};
 
-    /********* CRUD FUNÇÕES *********/
-    async function adicionar() {
-      const end = endereco.value.trim();
-      if (!end) return;
-      const coord = await geo(end);
-      paradas.unshift({
-        pedido: pedido.value.trim(),
-        endereco: end,
-        coords: coord,
-        done: false,
-      });
-      coords.unshift(coord);
-      endereco.value = "";
-      pedido.value = "";
-      refresh();
-      drawAll();
-      save();
-    }
+    /* CRUD */
+    async function adicionar(){const end=endereco.value.trim();if(!end)return;const coord=await geo(end);paradas.unshift({pedido:pedido.value.trim(),endereco:end,coords:coord,done:false});coords.unshift(coord);endereco.value='';pedido.value='';refresh();drawAll();save();}
+    function duplicar(i){const np=prompt('Novo nº pedido',paradas[i].pedido||'');if(np===null)return;paradas.splice(i+1,0,{...paradas[i],pedido:np,done:false});coords.splice(i+1,0,coords[i]);refresh();save();}
+    async function editar(i){const ne=prompt('Novo endereço',paradas[i].endereco);if(ne===null)return;const np=prompt('Novo nº pedido',paradas[i].pedido||'');if(np===null)return;const c=await geo(ne);paradas[i]={pedido:np,endereco:ne,coords:c,done:false};coords[i]=c;refresh();drawAll();save();}
+    function excluir(i){paradas.splice(i,1);coords.splice(i,1);refresh();drawAll();save();}
+    function novaRota(){paradas=[];coords=[];overlayOn=false;overlay.style.display='none';refresh();drawAll();save();}
 
-    function duplicar(i) {
-      const np = prompt("Novo nº pedido", paradas[i].pedido || "");
-      if (np === null) return;
-      paradas.splice(i + 1, 0, { ...paradas[i], pedido: np, done: false });
-      coords.splice(i + 1, 0, coords[i]);
-      refresh();
-      save();
-    }
+    /* GPS & otimização */
+    function usarGPS(){navigator.geolocation.getCurrentPosition(p=>{startC={lat:p.coords.latitude,lng:p.coords.longitude};startLabel='GPS';partida.value='GPS';drawAll();save();});}
+    function otimizar(){if(coords.length<2)return;const ord=[...coords.keys()].sort((a,b)=>coords[a].lat-coords[b].lat);paradas=ord.map(i=>paradas[i]);coords=ord.map(i=>coords[i]);refresh();drawAll();save();}
+    function inverter(){paradas.reverse();coords.reverse();refresh();drawAll();save();menu.style.display='none';}
 
-    async function editar(i) {
-      const ne = prompt("Novo endereço", paradas[i].endereco);
-      if (ne === null) return;
-      const np = prompt("Novo nº pedido", paradas[i].pedido || "");
-      if (np === null) return;
-      const c = await geo(ne);
-      paradas[i] = { pedido: np, endereco: ne, coords: c, done: false };
-      coords[i] = c;
-      refresh();
-      drawAll();
-      save();
-    }
+    /* mapa */
+    function drawAll(){markers.forEach(m=>m.setMap(null));markers=[];const b=new google.maps.LatLngBounds();if(startC){markers.push(new google.maps.Marker({position:startC,map,label:'S'}));b.extend(startC);}coords.forEach((c,i)=>{if(!c)return;markers.push(new google.maps.Marker({position:c,map,label:String(i+1)}));b.extend(c);});if(!b.isEmpty())map.fitBounds(b);if(startC&&coords.length)svc.route({origin:startC,destination:paradas.at(-1).endereco,waypoints:paradas.slice(0,-1).map(p=>({location:p.endereco,stopover:true})),travelMode:'DRIVING'},(res,s)=>s==='OK'&&rend.setDirections(res));}
 
-    function excluir(i) {
-      paradas.splice(i, 1);
-      coords.splice(i, 1);
-      refresh();
-      drawAll();
-      save();
-    }
+    /* navegação */
+    const openNav=d=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d)}&travelmode=driving&dir_action=navigate`,'_blank');
+    function iniciar(){if(!paradas.length)return alert('Sem paradas');overlay.style.display='flex';overlayOn=true;save();openNav(paradas[0].endereco);}
+    function statusEntrega(t){paradas[0].done=true;if(t==='nao'){paradas.push(paradas.shift());coords.push(coords.shift());}refresh();drawAll();save();if(paradas.length)openNav(paradas[0].endereco);}
 
-    function novaRota() {
-      paradas = [];
-      coords = [];
-      overlayOn = false;
-      overlay.style.display = "none";
-      refresh();
-      drawAll();
-      save();
-    }
-
-    /********* GPS & OTIMIZAÇÃO ******/
-
-    function usarGPS() {
-      navigator.geolocation.getCurrentPosition((p) => {
-        startC = { lat: p.coords.latitude, lng: p.coords.longitude };
-        startLabel = "GPS";
-        partida.value = "GPS";
-        drawAll();
-        save();
-      });
-    }
-
-    function otimizar() {
-      if (coords.length < 2) return;
-      const ord = [...coords.keys()].sort(
-        (a, b) => coords[a].lat - coords[b].lat
-      );
-      paradas = ord.map((i) => paradas[i]);
-      coords = ord.map((i) => coords[i]);
-      refresh();
-      drawAll();
-      save();
-    }
-
-    function inverter() {
-      paradas.reverse();
-      coords.reverse();
-      refresh();
-      drawAll();
-      save();
-      menu.style.display = "none";
-    }
-
-    /********* MAPA & POLYLINE *********/
-    function drawAll() {
-      markers.forEach((m) => m.setMap(null));
-      markers = [];
-
-      const bounds = new google.maps.LatLngBounds();
-      if (startC) {
-        markers.push(new google.maps.Marker({ position: startC, map, label: "S" }));
-        bounds.extend(startC);
-      }
-
-      coords.forEach((c, i) => {
-        if (!c) return;
-        markers.push(new google.maps.Marker({ position: c, map, label: String(i + 1) }));
-        bounds.extend(c);
-      });
-
-      if (!bounds.isEmpty()) map.fitBounds(bounds);
-
-      if (startC && coords.length) {
-        svc.route(
-          {
-            origin: startC,
-            destination: paradas.at(-1).endereco,
-            waypoints: paradas
-              .slice(0, -1)
-              .map((p) => ({ location: p.endereco, stopover: true })),
-            travelMode: "DRIVING",
-          },
-          (res, s) => s === "OK" && rend.setDirections(res)
-        );
-      }
-    }
-
-    /********* NAV *********/
-    const openNav = (d) =>
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-          d
-        )}&travelmode=driving&dir_action=navigate`,
-        "_blank"
-      );
-
-    function iniciar() {
-      if (!paradas.length) return alert("Sem paradas");
-      overlay.style.display = "flex";
-      overlayOn = true;
-      save();
-      openNav(paradas[0].endereco);
-    }
-
-    function statusEntrega(tipo) {
-      paradas[0].done = true;
-      if (tipo === "nao") {
-        paradas.push(paradas.shift());
-        coords.push(coords.shift());
-      }
-      refresh();
-      drawAll();
-      save();
-      if (paradas.length) openNav(paradas[0].endereco);
-    }
-
-    /********* VOZ *********/
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const rec = new SR();
-      rec.lang = "pt-BR";
-      btnVoz.onclick = () => rec.start();
-      rec.onresult = (e) => (endereco.value = e.results[0][0].transcript);
-    }
-  </script>
-</body>
+    /* voz */
+    if('webkitSpeechRecognition'in window||'SpeechRecognition'in window){const SR=SpeechRecognition||webkitSpeechRecognition;const rec=new SR();rec.lang='pt-BR';btnVoz.onclick=()=>rec.start();rec.onresult=e=>endereco.value=e.results[0][0].transcript;}
+  </script></body>
 </html>
